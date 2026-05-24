@@ -864,6 +864,9 @@ public class Server {
         Generator.addGenerator(OldNormal.class, "oldnormal", Generator.TYPE_INFINITE);
         Generator.addGenerator(Nether.class, "nether", Generator.TYPE_NETHER);
         Generator.addGenerator(End.class, "the_end", Generator.TYPE_THE_END);
+        Generator.addGenerator(PnxNormalGenerator.class, "pnx_normal", Generator.TYPE_INFINITE);
+        Generator.addGenerator(PnxNetherGenerator.class, "pnx_nether", Generator.TYPE_NETHER);
+        Generator.addGenerator(PnxTheEndGenerator.class, "pnx_the_end", Generator.TYPE_THE_END);
         Generator.addGenerator(Void.class, "void", Generator.TYPE_VOID);
 
         if (this.defaultLevel == null) {
