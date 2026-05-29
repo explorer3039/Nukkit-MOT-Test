@@ -14,13 +14,14 @@ import cn.nukkit.level.sound.ClickSound;
 import cn.nukkit.math.AxisAlignedBB;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.SimpleAxisAlignedBB;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Created by Snake1999 on 2016/1/11.
  * Package cn.nukkit.block in project nukkit
  */
-public abstract class BlockPressurePlateBase extends BlockFlowable {
+public abstract class BlockPressurePlateBase extends BlockFlowable implements RedstoneComponent {
 
     protected float onPitch;
     protected float offPitch;
@@ -124,8 +125,8 @@ public abstract class BlockPressurePlateBase extends BlockFlowable {
             this.setRedstonePower(strength);
             this.level.setBlock(this, this, false, true);
 
-            this.level.updateAroundRedstone(this, null);
-            this.level.updateAroundRedstone(this.getLocation().down(), null);
+            updateAroundRedstone();
+            RedstoneComponent.updateAroundRedstone(this.getSide(BlockFace.DOWN));
 
             if (!isPowered && wasPowered) {
                 this.playOffSound();
@@ -146,8 +147,8 @@ public abstract class BlockPressurePlateBase extends BlockFlowable {
         this.level.setBlock(this, Block.get(BlockID.AIR), true, true);
 
         if (this.getRedstonePower() > 0) {
-            this.level.updateAroundRedstone(this, null);
-            this.level.updateAroundRedstone(this.getLocation().down(), null);
+            updateAroundRedstone();
+            RedstoneComponent.updateAroundRedstone(this.getSide(BlockFace.DOWN));
         }
 
         return true;

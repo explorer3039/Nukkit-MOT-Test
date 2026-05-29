@@ -8,12 +8,13 @@ import cn.nukkit.item.ItemTool;
 import cn.nukkit.level.Level;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.utils.BlockColor;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * @author Nukkit Project Team
  */
-public class BlockRedstoneLamp extends BlockSolid {
+public class BlockRedstoneLamp extends BlockSolid implements RedstoneComponent {
 
     @Override
     public String getName() {
@@ -42,7 +43,7 @@ public class BlockRedstoneLamp extends BlockSolid {
 
     @Override
     public boolean place(@NotNull Item item, @NotNull Block block, @NotNull Block target, @NotNull BlockFace face, double fx, double fy, double fz, Player player) {
-        if (this.level.isBlockPowered(this.getLocation())) {
+        if (this.isGettingPower()) {
             this.level.setBlock(this, Block.get(LIT_REDSTONE_LAMP), false, true);
         } else {
             this.level.setBlock(this, this, false, true);
@@ -53,19 +54,38 @@ public class BlockRedstoneLamp extends BlockSolid {
     @Override
     public int onUpdate(int type) {
         if (type == Level.BLOCK_UPDATE_NORMAL || type == Level.BLOCK_UPDATE_REDSTONE) {
-            // Redstone event
-            RedstoneUpdateEvent ev = new RedstoneUpdateEvent(this);
-            getLevel().getServer().getPluginManager().callEvent(ev);
-            if (ev.isCancelled()) {
-                return 0;
-            }
-            if (this.level.isBlockPowered(this.getLocation())) {
+            if (this.isGettingPower()) {
+                RedstoneUpdateEvent ev = new RedstoneUpdateEvent(this);
+                getLevel().getServer().getPluginManager().callEvent(ev);
+                if (ev.isCancelled()) {
+                    return 0;
+                }
+
+                this.level.updateComparatorOutputLevelSelective(this, true);
                 this.level.setBlock(this, Block.get(LIT_REDSTONE_LAMP), false, false);
                 return 1;
             }
         }
 
         return 0;
+    }
+
+    public boolean isGettingPower() {
+        for (BlockFace side : BlockFace.values()) {
+            Block block = this.getSide(side);
+            if (block == null) {
+                continue;
+            }
+            if (block.getId() == Block.REDSTONE_WIRE && block.getDamage() > 0 && block.y >= this.getY()) {
+                return true;
+            }
+
+            if (this.level.isSidePowered(block, side)) {
+                return true;
+            }
+        }
+
+        return this.level.isBlockPowered(this.getLocation());
     }
 
     @Override

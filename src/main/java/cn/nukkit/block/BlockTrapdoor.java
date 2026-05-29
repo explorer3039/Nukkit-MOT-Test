@@ -13,12 +13,16 @@ import cn.nukkit.math.SimpleAxisAlignedBB;
 import cn.nukkit.network.protocol.LevelEventPacket;
 import cn.nukkit.utils.BlockColor;
 import cn.nukkit.utils.Faceable;
+import com.google.common.collect.Sets;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.Set;
 
 public class BlockTrapdoor extends BlockTransparentMeta implements Faceable {
     public static final int DIRECTION_MASK = 0b11;
     public static final int TRAPDOOR_TOP_BIT = 0x04;
     public static final int TRAPDOOR_OPEN_BIT = 0x08;
+    private static final Set<String> manualOverrides = Sets.newConcurrentHashSet();
     private static final AxisAlignedBB[] boundingBoxDamage = new AxisAlignedBB[16];
 
     static {
@@ -57,13 +61,17 @@ public class BlockTrapdoor extends BlockTransparentMeta implements Faceable {
 
     @Override
     public int onUpdate(int type) {
-        if (type == Level.BLOCK_UPDATE_REDSTONE && (
-                !this.isOpen() && level.isBlockPowered(this) || this.isOpen() && !level.isBlockPowered(this)
-        )) {
-            level.getServer().getPluginManager().callEvent(new BlockRedstoneEvent(this, this.isOpen() ? 15 : 0, this.isOpen() ? 0 : 15));
-            this.setDamage(this.getDamage() ^ TRAPDOOR_OPEN_BIT);
-            level.setBlock(this, this, true);
-            level.addLevelEvent(this.add(0.5, 0.5, 0.5), LevelEventPacket.EVENT_SOUND_DOOR);
+        if (type == Level.BLOCK_UPDATE_REDSTONE) {
+            boolean powered = this.isGettingPower();
+
+            if (this.isOpen() != powered && !this.getManualOverride()) {
+                level.getServer().getPluginManager().callEvent(new BlockRedstoneEvent(this, this.isOpen() ? 15 : 0, this.isOpen() ? 0 : 15));
+                this.setOpen(powered);
+                level.setBlock(this, this, true);
+                level.addLevelEvent(this.add(0.5, 0.5, 0.5), LevelEventPacket.EVENT_SOUND_DOOR);
+            } else if (this.getManualOverride() && powered == this.isOpen()) {
+                this.setManualOverride(false);
+            }
             return type;
         }
 
@@ -156,7 +164,14 @@ public class BlockTrapdoor extends BlockTransparentMeta implements Faceable {
             meta |= TRAPDOOR_TOP_BIT;
         }
         this.setDamage(meta);
-        this.getLevel().setBlock(block, this, true, true);
+        if (!this.getLevel().setBlock(block, this, true, true)) {
+            return false;
+        }
+
+        if (!this.isOpen() && this.isGettingPower()) {
+            this.setOpen(true);
+            this.getLevel().setBlock(this, this, true, true);
+        }
         return true;
     }
 
@@ -180,17 +195,69 @@ public class BlockTrapdoor extends BlockTransparentMeta implements Faceable {
         if (ev.isCancelled()) {
             return false;
         }
-        this.setDamage(this.getDamage() ^ TRAPDOOR_OPEN_BIT);
+        this.setOpen(!this.isOpen());
         this.getLevel().setBlock(this, this, true);
+        if (player != null) {
+            this.setManualOverride(this.isGettingPower() || this.isOpen());
+        }
         return true;
+    }
+
+    public boolean isGettingPower() {
+        for (BlockFace side : BlockFace.values()) {
+            Block block = this.getSide(side);
+            if (block == null) {
+                continue;
+            }
+            if (block.getId() == Block.REDSTONE_WIRE && block.getDamage() > 0 && block.y >= this.getY()) {
+                return true;
+            }
+
+            if (this.level.isSidePowered(block, side)) {
+                return true;
+            }
+        }
+
+        return this.level.isBlockPowered(this);
+    }
+
+    @Override
+    public boolean onBreak(Item item) {
+        this.setManualOverride(false);
+        return super.onBreak(item);
     }
 
     public boolean isOpen() {
         return (this.getDamage() & TRAPDOOR_OPEN_BIT) == TRAPDOOR_OPEN_BIT;
     }
 
+    public void setOpen(boolean open) {
+        if (open) {
+            this.setDamage(this.getDamage() | TRAPDOOR_OPEN_BIT);
+        } else {
+            this.setDamage(this.getDamage() & ~TRAPDOOR_OPEN_BIT);
+        }
+    }
+
     public boolean isTop() {
         return (this.getDamage() & TRAPDOOR_TOP_BIT) == TRAPDOOR_TOP_BIT;
+    }
+
+    public void setManualOverride(boolean value) {
+        String key = this.getManualOverrideKey();
+        if (value) {
+            manualOverrides.add(key);
+        } else {
+            manualOverrides.remove(key);
+        }
+    }
+
+    public boolean getManualOverride() {
+        return manualOverrides.contains(this.getManualOverrideKey());
+    }
+
+    private String getManualOverrideKey() {
+        return this.level.getId() + ":" + this.getFloorX() + ":" + this.getFloorY() + ":" + this.getFloorZ();
     }
 
     @Override

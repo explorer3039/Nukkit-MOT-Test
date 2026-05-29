@@ -12,6 +12,7 @@ import cn.nukkit.level.format.FullChunk;
 import cn.nukkit.nbt.NBTIO;
 import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.nbt.tag.IntTag;
+import cn.nukkit.utils.RedstoneComponent;
 
 public class BlockEntityLectern extends BlockEntitySpawnable {
 
@@ -111,11 +112,7 @@ public class BlockEntityLectern extends BlockEntitySpawnable {
     public void setRawPage(int page) {
         this.namedTag.putInt("page", Math.min(page, totalPages));
         setDirty();
-
-        Block block = getLevelBlock();
-        if (block instanceof BlockLectern) {
-            ((BlockLectern) block).onPageChange(hasBook());
-        }
+        this.getLevel().updateAround(this);
     }
 
     public int getRawPage() {
@@ -133,7 +130,7 @@ public class BlockEntityLectern extends BlockEntitySpawnable {
         } else {
             totalPages = book.getNamedTag().getList("pages", CompoundTag.class).size();
         }
-        level.updateAroundRedstone(this, null);
+        RedstoneComponent.updateAroundRedstone(this);
     }
 
     public boolean dropBook(Player player) {
@@ -147,11 +144,6 @@ public class BlockEntityLectern extends BlockEntitySpawnable {
 
             this.setBook(null);
             this.level.dropItem(this.add(0.5, 1, 0.5), item);
-
-            Block block = getLevelBlock();
-            if (block instanceof BlockLectern) {
-                ((BlockLectern) block).onPageChange(false);
-            }
             return true;
         }
         return false;

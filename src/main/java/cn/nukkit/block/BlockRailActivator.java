@@ -3,8 +3,10 @@ package cn.nukkit.block;
 import cn.nukkit.item.Item;
 import cn.nukkit.item.ItemBlock;
 import cn.nukkit.level.Level;
+import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.utils.Rail;
+import cn.nukkit.utils.RedstoneComponent;
 
 /**
  * @author Nukkit Project Team
@@ -37,15 +39,15 @@ public class BlockRailActivator extends BlockRail {
                 return 0; // Already broken
             }
 
-            boolean isPowered = level.isBlockPowered(this.getLocation())
+            boolean isPowered = this.isGettingRedstonePower()
                     || checkSurrounding(this, true, 0)
                     || checkSurrounding(this, false, 0);
 
             if (isActive() != isPowered) {
                 setActive(isPowered);
-                level.updateAround(down());
+                RedstoneComponent.updateAroundRedstone(down(), BlockFace.UP, BlockFace.DOWN);
                 if (getOrientation().isAscending()) {
-                    level.updateAround(up());
+                    RedstoneComponent.updateAroundRedstone(up(), BlockFace.UP, BlockFace.DOWN);
                 }
             }
             return type;
@@ -161,7 +163,7 @@ public class BlockRailActivator extends BlockRail {
                 || base != Rail.Orientation.STRAIGHT_EAST_WEST
                 && base != Rail.Orientation.ASCENDING_EAST
                 && base != Rail.Orientation.ASCENDING_WEST)
-                && (level.isBlockPowered(pos) || checkSurrounding(pos, relative, power + 1));
+                && (block.isGettingRedstonePower() || checkSurrounding(pos, relative, power + 1));
     }
 
     @Override

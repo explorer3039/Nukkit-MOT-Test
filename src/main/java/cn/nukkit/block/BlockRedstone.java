@@ -3,12 +3,13 @@ package cn.nukkit.block;
 import cn.nukkit.item.ItemTool;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.utils.BlockColor;
+import cn.nukkit.utils.RedstoneComponent;
 
 /*
  * Created on 2015/12/11 by Pub4Game.
  * Package cn.nukkit.block in project Nukkit .
  */
-public class BlockRedstone extends BlockSolid {
+public class BlockRedstone extends BlockSolid implements RedstoneComponent {
 
     @Override
     public int getId() {
@@ -47,6 +48,24 @@ public class BlockRedstone extends BlockSolid {
 
     @Override
     public boolean isPowerSource() {
+        return true;
+    }
+
+    @Override
+    public boolean place(cn.nukkit.item.Item item, Block block, Block target, BlockFace face, double fx, double fy, double fz, cn.nukkit.Player player) {
+        if (!super.place(item, block, target, face, fx, fy, fz, player)) {
+            return false;
+        }
+        updateAroundRedstone();
+        return true;
+    }
+
+    @Override
+    public boolean onBreak(cn.nukkit.item.Item item) {
+        if (!super.onBreak(item)) {
+            return false;
+        }
+        updateAroundRedstone();
         return true;
     }
 

@@ -12,16 +12,14 @@ import cn.nukkit.level.Level;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import cn.nukkit.utils.Utils;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class BlockDropper extends BlockSolidMeta implements Faceable {
-
-    protected boolean triggered = false;
-
+public class BlockDropper extends BlockSolidMeta implements RedstoneComponent, Faceable {
     public BlockDropper() {
         this(0);
     }
@@ -131,6 +129,20 @@ public class BlockDropper extends BlockSolidMeta implements Faceable {
         return new ItemBlock(this, 0);
     }
 
+    public boolean isTriggered() {
+        return (this.getDamage() & 8) > 0;
+    }
+
+    public void setTriggered(boolean value) {
+        int damage = this.getBlockFace().getIndex();
+
+        if (value) {
+            damage |= 8;
+        }
+
+        this.setDamage(damage);
+    }
+
     public Vector3 getDispensePosition() {
         BlockFace facing = getBlockFace();
         return this.add(
@@ -207,14 +219,19 @@ public class BlockDropper extends BlockSolidMeta implements Faceable {
     @Override
     public int onUpdate(int type) {
         if (type == Level.BLOCK_UPDATE_SCHEDULED) {
-            triggered = false;
             dispense();
 
             return type;
-        } else if (type == Level.BLOCK_UPDATE_REDSTONE) {
-            if ((level.isBlockPowered(this) || level.isBlockPowered(this.up())) && !triggered) {
-                triggered = true;
-                level.scheduleUpdate(this, this, 4);
+        } else if (type == Level.BLOCK_UPDATE_REDSTONE || type == Level.BLOCK_UPDATE_NORMAL) {
+            boolean powered = this.isGettingRedstonePower() || this.up().isGettingRedstonePower();
+
+            if (powered && !this.isTriggered()) {
+                this.setTriggered(true);
+                this.level.setBlock(this, this, false, false);
+                this.level.scheduleUpdate(this, this, 4);
+            } else if (!powered && this.isTriggered()) {
+                this.setTriggered(false);
+                this.level.setBlock(this, this, false, false);
             }
 
             return type;

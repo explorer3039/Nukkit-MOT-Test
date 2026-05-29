@@ -15,10 +15,11 @@ import cn.nukkit.network.protocol.ContainerOpenPacket;
 import cn.nukkit.network.protocol.LevelSoundEventPacket;
 import cn.nukkit.network.protocol.ProtocolInfo;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class BlockLectern extends BlockTransparentMeta implements Faceable, BlockEntityHolder<BlockEntityLectern> {
+public class BlockLectern extends BlockTransparentMeta implements RedstoneComponent, Faceable, BlockEntityHolder<BlockEntityLectern> {
 
     public BlockLectern() {
         this(0);
@@ -180,7 +181,7 @@ public class BlockLectern extends BlockTransparentMeta implements Faceable, Bloc
     public void setActivated(boolean activated) {
         if (activated) {
             setDamage(getDamage() | 0x04);
-        } else {
+        } else if (isActivated()) {
             setDamage(getDamage() ^ 0x04);
         }
     }
@@ -195,22 +196,39 @@ public class BlockLectern extends BlockTransparentMeta implements Faceable, Bloc
         return face == BlockFace.DOWN ? this.getWeakPower(face) : 0;
     }
 
+    public void executeRedstonePulse() {
+        if (isActivated()) {
+            level.cancelSheduledUpdate(this, this);
+        } else {
+            this.level.getServer().getPluginManager().callEvent(new BlockRedstoneEvent(this, 0, 15));
+        }
+
+        level.scheduleUpdate(this, this, 4);
+        setActivated(true);
+        level.setBlock(this, this, true, false);
+        level.addLevelSoundEvent(this, LevelSoundEventPacket.SOUND_ITEM_BOOK_PUT);
+
+        updateAroundRedstone();
+        RedstoneComponent.updateAroundRedstone(getSide(BlockFace.DOWN), BlockFace.UP);
+    }
+
     public void onPageChange(boolean active) {
-        if (isActivated() != active) {
-            setActivated(active);
-            this.level.getServer().getPluginManager().callEvent(new BlockRedstoneEvent(this, 15, 0));
-            level.setBlock((int) this.x, (int) this.y, (int) this.z, 0, this, false, false); // No need to send this to client
-            level.updateAroundRedstone(this, null);
-            if (active) {
-                level.scheduleUpdate(this, 1);
-            }
+        if (active) {
+            executeRedstonePulse();
         }
     }
 
     @Override
     public int onUpdate(int type) {
-        if (type == Level.BLOCK_UPDATE_SCHEDULED || type == Level.BLOCK_UPDATE_NORMAL) {
-            onPageChange(false);
+        if (type == Level.BLOCK_UPDATE_SCHEDULED) {
+            if (isActivated()) {
+                this.level.getServer().getPluginManager().callEvent(new BlockRedstoneEvent(this, 15, 0));
+                setActivated(false);
+                level.setBlock(this, this, true, false);
+                updateAroundRedstone();
+                RedstoneComponent.updateAroundRedstone(getSide(BlockFace.DOWN), BlockFace.UP);
+            }
+            return Level.BLOCK_UPDATE_SCHEDULED;
         }
         return 0;
     }

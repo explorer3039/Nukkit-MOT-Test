@@ -18,9 +18,10 @@ import cn.nukkit.math.Vector3;
 import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.utils.BlockColor;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
-public class BlockBell extends BlockTransparentMeta implements Faceable, BlockEntityHolder<BlockEntityBell> {
+public class BlockBell extends BlockTransparentMeta implements RedstoneComponent, Faceable, BlockEntityHolder<BlockEntityBell> {
     public static final int TYPE_ATTACHMENT_STANDING = 0;
     public static final int TYPE_ATTACHMENT_HANGING = 1;
     public static final int TYPE_ATTACHMENT_SIDE = 2;
@@ -286,7 +287,7 @@ public class BlockBell extends BlockTransparentMeta implements Faceable, BlockEn
             }
             return type;
         } else if (type == Level.BLOCK_UPDATE_REDSTONE) {
-            if (level.isBlockPowered(this)) {
+            if (this.isGettingPower()) {
                 if (!isToggled()) {
                     setToggled(true);
                     this.level.setBlock(this, this, true, true);
@@ -299,6 +300,24 @@ public class BlockBell extends BlockTransparentMeta implements Faceable, BlockEn
             return type;
         }
         return 0;
+    }
+
+    public boolean isGettingPower() {
+        for (BlockFace side : BlockFace.values()) {
+            Block block = this.getSide(side);
+            if (block == null) {
+                continue;
+            }
+            if (block.getId() == Block.REDSTONE_WIRE && block.getDamage() > 0 && block.y >= this.getY()) {
+                return true;
+            }
+
+            if (this.level.isSidePowered(block, side)) {
+                return true;
+            }
+        }
+
+        return this.level.isBlockPowered(this.getLocation());
     }
 
     @Override

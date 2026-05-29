@@ -9,12 +9,13 @@ import cn.nukkit.level.sound.LeverSound;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.utils.BlockColor;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * @author Nukkit Project Team
  */
-public class BlockLever extends BlockFlowable implements Faceable {
+public class BlockLever extends BlockFlowable implements RedstoneComponent, Faceable {
 
     public BlockLever() {
         this(0);
@@ -73,8 +74,8 @@ public class BlockLever extends BlockFlowable implements Faceable {
 
         LeverOrientation orientation = LeverOrientation.byMetadata(this.isPowerOn() ? this.getDamage() ^ 0x08 : this.getDamage());
         BlockFace face = orientation.getFacing();
-        level.updateAroundRedstone(this.getLocation(), null);
-        this.level.updateAroundRedstone(this.getLocation().getSide(face.getOpposite()), isPowerOn() ? face : null);
+        updateAroundRedstone();
+        RedstoneComponent.updateAroundRedstone(getSide(face.getOpposite()), face);
         return true;
     }
 
@@ -111,8 +112,9 @@ public class BlockLever extends BlockFlowable implements Faceable {
 
             LeverOrientation orientation = LeverOrientation.byMetadata(this.getDamage() ^ 0x08);
             BlockFace face = orientation.getFacing();
-            this.level.updateAroundRedstone(this, null);
-            this.level.updateAroundRedstone(this.getSideVec(face.getOpposite()), face);
+            this.level.updateAround(this.getLocation().getSide(face.getOpposite()));
+            updateAroundRedstone();
+            RedstoneComponent.updateAroundRedstone(getSide(face.getOpposite()), face);
         }
 
         return true;

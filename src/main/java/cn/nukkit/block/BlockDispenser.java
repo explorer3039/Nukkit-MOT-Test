@@ -15,6 +15,7 @@ import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.network.protocol.LevelEventPacket;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map.Entry;
@@ -24,7 +25,7 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * Created by CreeperFace on 15.4.2017.
  */
-public class BlockDispenser extends BlockSolidMeta implements Faceable, BlockEntityHolder<BlockEntityDispenser> {
+public class BlockDispenser extends BlockSolidMeta implements RedstoneComponent, Faceable, BlockEntityHolder<BlockEntityDispenser> {
 
     public BlockDispenser() {
         this(0);
@@ -145,18 +146,20 @@ public class BlockDispenser extends BlockSolidMeta implements Faceable, BlockEnt
     @Override
     public int onUpdate(int type) {
         if (type == Level.BLOCK_UPDATE_SCHEDULED) {
-            this.setTriggered(false);
-            this.level.setBlock(this, this, false, false);
-
             dispense();
             return type;
         }
 
-        if (type == Level.BLOCK_UPDATE_REDSTONE) {
-            if ((level.isBlockPowered(this) || level.isBlockPowered(this.up())) && !isTriggered()) {
+        if (type == Level.BLOCK_UPDATE_REDSTONE || type == Level.BLOCK_UPDATE_NORMAL) {
+            boolean powered = this.isGettingRedstonePower() || this.up().isGettingRedstonePower();
+
+            if (powered && !this.isTriggered()) {
                 this.setTriggered(true);
                 this.level.setBlock(this, this, false, false);
-                level.scheduleUpdate(this, this, 4);
+                this.level.scheduleUpdate(this, this, 4);
+            } else if (!powered && this.isTriggered()) {
+                this.setTriggered(false);
+                this.level.setBlock(this, this, false, false);
             }
 
             return type;

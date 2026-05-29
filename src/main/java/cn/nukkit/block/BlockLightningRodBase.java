@@ -11,6 +11,7 @@ import cn.nukkit.item.ItemBlock;
 import cn.nukkit.item.ItemTool;
 import cn.nukkit.level.Level;
 import cn.nukkit.math.BlockFace;
+import cn.nukkit.utils.RedstoneComponent;
 import cn.nukkit.utils.BlockColor;
 import cn.nukkit.utils.Faceable;
 import org.jetbrains.annotations.NotNull;
@@ -198,8 +199,8 @@ public abstract class BlockLightningRodBase extends BlockTransparentMeta impleme
     }
 
     private void updateRedstoneNeighbours() {
-        this.level.updateAroundRedstone(this, null);
-        this.level.updateAroundRedstone(this.getSideVec(this.getBlockFace().getOpposite()), null);
+        RedstoneComponent.updateAroundRedstone(this);
+        RedstoneComponent.updateAroundRedstone(this.getSide(this.getBlockFace().getOpposite()));
     }
 
     @Override

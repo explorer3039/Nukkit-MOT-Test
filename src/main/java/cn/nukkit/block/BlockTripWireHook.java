@@ -8,12 +8,13 @@ import cn.nukkit.level.Level;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.network.protocol.LevelSoundEventPacket;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * @author CreeperFace
  */
-public class BlockTripWireHook extends BlockFlowable {
+public class BlockTripWireHook extends BlockFlowable implements RedstoneComponent {
 
     public BlockTripWireHook() {
         this(0);
@@ -76,7 +77,7 @@ public class BlockTripWireHook extends BlockFlowable {
     }
 
     private static boolean isSupportValid(Block block) {
-        return !block.isTransparent() || Block.canConnectToFullSolid(block);
+        return block.isNormalBlock() || block instanceof BlockGlass;
     }
 
     @Override
@@ -90,8 +91,8 @@ public class BlockTripWireHook extends BlockFlowable {
         }
 
         if (powered) {
-            this.level.updateAroundRedstone(this, null);
-            this.level.updateAroundRedstone(this.getLocation().getSide(getFacing().getOpposite()), null);
+            updateAroundRedstone();
+            RedstoneComponent.updateAroundRedstone(this.getSide(getFacing().getOpposite()));
         }
 
         return true;
@@ -152,8 +153,8 @@ public class BlockTripWireHook extends BlockFlowable {
             BlockFace face = facing.getOpposite();
             hook.setFace(face);
             this.level.setBlock(vec, hook, true, true);
-            this.level.updateAroundRedstone(vec, null);
-            this.level.updateAroundRedstone(vec.getSide(face.getOpposite()), null);
+            RedstoneComponent.updateAroundRedstone(this.level.getBlock(vec));
+            RedstoneComponent.updateAroundRedstone(this.level.getBlock(vec.getSide(face.getOpposite())));
             this.addSound(vec, canConnect, nextPowered, attached, powered);
         }
 
@@ -164,8 +165,8 @@ public class BlockTripWireHook extends BlockFlowable {
             this.level.setBlock(v, hook, true, true);
 
             if (updateAround) {
-                this.level.updateAroundRedstone(v, null);
-                this.level.updateAroundRedstone(v.getSide(facing.getOpposite()), null);
+                updateAroundRedstone();
+                RedstoneComponent.updateAroundRedstone(this.getSide(facing.getOpposite()));
             }
         }
 

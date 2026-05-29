@@ -10,6 +10,7 @@ import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.BlockFace.Plane;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.utils.BlockColor;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.EnumSet;
@@ -18,7 +19,7 @@ import java.util.EnumSet;
  * @author Angelic47
  * Nukkit Project
  */
-public class BlockRedstoneWire extends BlockFlowable {
+public class BlockRedstoneWire extends BlockFlowable implements RedstoneComponent {
 
     private boolean canProvidePower = true;
     private boolean scheduledDecay = false;
@@ -55,7 +56,7 @@ public class BlockRedstoneWire extends BlockFlowable {
         Vector3 pos = getLocation();
 
         for (BlockFace blockFace : Plane.VERTICAL) {
-            this.level.updateAroundRedstone(pos.getSide(blockFace), blockFace.getOpposite());
+            RedstoneComponent.updateAroundRedstone(getSide(blockFace), blockFace.getOpposite());
         }
 
         for (BlockFace blockFace : Plane.VERTICAL) {
@@ -76,10 +77,10 @@ public class BlockRedstoneWire extends BlockFlowable {
 
     private void updateAround(Vector3 pos, BlockFace face) {
         if (this.level.getBlock(pos).getId() == Block.REDSTONE_WIRE) {
-            this.level.updateAroundRedstone(pos, face);
+            RedstoneComponent.updateAroundRedstone(this.level.getBlock(pos), face);
 
             for (BlockFace side : BlockFace.values()) {
-                this.level.updateAroundRedstone(pos.getSide(side), side.getOpposite());
+                RedstoneComponent.updateAroundRedstone(this.level.getBlock(pos).getSide(side), side.getOpposite());
             }
         }
     }
@@ -114,11 +115,14 @@ public class BlockRedstoneWire extends BlockFlowable {
 
                 strength = this.getMaxCurrentStrength(v, strength);
 
-                boolean vNormal = this.level.getBlock(v).isNormalBlock();
+                if (this.getMaxCurrentStrength(v.up(), strength) > strength && !this.level.getBlock(pos.up()).isNormalBlock()) {
+                    Block supportBelowUp = this.level.getBlock(v);
+                    if (!(supportBelowUp instanceof BlockSlab && ((BlockSlab) supportBelowUp).hasTopBit())) {
+                        strength = this.getMaxCurrentStrength(v.up(), strength);
+                    }
+                }
 
-                if (vNormal && !this.level.getBlock(pos.up()).isNormalBlock()) {
-                    strength = this.getMaxCurrentStrength(v.up(), strength);
-                } else if (!vNormal) {
+                if (this.getMaxCurrentStrength(v.down(), strength) > strength && !this.level.getBlock(v).isNormalBlock()) {
                     strength = this.getMaxCurrentStrength(v.down(), strength);
                 }
             }
@@ -144,10 +148,7 @@ public class BlockRedstoneWire extends BlockFlowable {
                     this.level.setBlock(this, this, false, false);
                 }
 
-                this.level.updateAroundRedstone(this, null);
-                for (BlockFace face : BlockFace.values()) {
-                    this.level.updateAroundRedstone(pos.getSide(face), face.getOpposite());
-                }
+                updateAllAroundRedstone();
 
                 if (maxStrength > 0) {
                     if (!scheduledDecay) {
@@ -159,7 +160,7 @@ public class BlockRedstoneWire extends BlockFlowable {
                 }
             } else if (force) {
                 for (BlockFace face : BlockFace.values()) {
-                    this.level.updateAroundRedstone(pos.getSide(face), face.getOpposite());
+                    RedstoneComponent.updateAroundRedstone(getSide(face), face.getOpposite());
                 }
             }
         } finally {
@@ -185,7 +186,7 @@ public class BlockRedstoneWire extends BlockFlowable {
         this.calculateCurrentChanges(false, false);
 
         for (BlockFace blockFace : BlockFace.values()) {
-            this.level.updateAroundRedstone(pos.getSide(blockFace), null);
+            RedstoneComponent.updateAroundRedstone(this.level.getBlock(pos.getSide(blockFace)));
         }
 
         for (BlockFace blockFace : Plane.HORIZONTAL) {

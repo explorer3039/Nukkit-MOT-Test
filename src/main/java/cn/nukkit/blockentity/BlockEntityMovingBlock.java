@@ -16,6 +16,7 @@ public class BlockEntityMovingBlock extends BlockEntitySpawnable {
 
     protected Block block;
     protected BlockVector3 piston;
+    protected boolean expanding;
 
     public BlockEntityMovingBlock(FullChunk chunk, CompoundTag nbt) {
         super(chunk, nbt);
@@ -36,6 +37,8 @@ public class BlockEntityMovingBlock extends BlockEntitySpawnable {
         } else {
             this.piston = new BlockVector3(0, -1, 0);
         }
+
+        this.expanding = this.namedTag.getBoolean("expanding");
 
         super.initBlockEntity();
 
@@ -92,7 +95,7 @@ public class BlockEntityMovingBlock extends BlockEntitySpawnable {
         return super.onUpdate();
     }
 
-    public CompoundTag getBlockEntity() {
+    public CompoundTag getMovingBlockEntityCompound() {
         if (this.namedTag.contains("movingEntity")) {
             return this.namedTag.getCompound("movingEntity");
         }
@@ -100,9 +103,13 @@ public class BlockEntityMovingBlock extends BlockEntitySpawnable {
         return null;
     }
 
+    public Block getMovingBlock() {
+        return this.block;
+    }
+
     @Override
     public Block getBlock() {
-        return this.block;
+        return super.getBlock();
     }
 
     public void moveCollidedEntities(BlockEntityPistonArm piston, BlockFace moveDirection) {
@@ -116,7 +123,7 @@ public class BlockEntityMovingBlock extends BlockEntitySpawnable {
                 this.x + (piston.progress * moveDirection.getXOffset()) - moveDirection.getXOffset(),
                 this.y + (piston.progress * moveDirection.getYOffset()) - moveDirection.getYOffset(),
                 this.z + (piston.progress * moveDirection.getZOffset()) - moveDirection.getZOffset()
-        );
+        ).addCoord(0, moveDirection.getAxis().isHorizontal() ? 0.25 : 0, 0);
 
         Entity[] entities = this.level.getCollidingEntities(bb);
 
@@ -133,6 +140,7 @@ public class BlockEntityMovingBlock extends BlockEntitySpawnable {
     @Override
     public CompoundTag getSpawnCompound() {
         return getDefaultCompound(this, MOVING_BLOCK)
+                .putBoolean("expanding", this.expanding)
                 .putInt("pistonPosX", this.piston.x)
                 .putInt("pistonPosY", this.piston.y)
                 .putInt("pistonPosZ", this.piston.z)

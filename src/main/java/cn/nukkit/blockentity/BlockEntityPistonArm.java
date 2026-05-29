@@ -1,11 +1,14 @@
 package cn.nukkit.blockentity;
 
+import cn.nukkit.Player;
 import cn.nukkit.block.Block;
 import cn.nukkit.block.BlockAir;
 import cn.nukkit.block.BlockChest;
 import cn.nukkit.block.BlockID;
 import cn.nukkit.entity.Entity;
 import cn.nukkit.event.entity.EntityMoveByPistonEvent;
+import cn.nukkit.level.Level;
+import cn.nukkit.level.Position;
 import cn.nukkit.level.format.FullChunk;
 import cn.nukkit.math.AxisAlignedBB;
 import cn.nukkit.math.BlockFace;
@@ -15,6 +18,7 @@ import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.nbt.tag.IntTag;
 import cn.nukkit.nbt.tag.ListTag;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -132,29 +136,52 @@ public class BlockEntityPistonArm extends BlockEntitySpawnable {
     }
 
     void moveEntity(Entity entity, BlockFace moveDirection) {
-        if (!entity.canBePushed()) {
+        if (moveDirection == BlockFace.DOWN) {
+            return;
+        }
+
+        float diff = Math.abs(this.progress - this.lastProgress);
+        if (diff == 0 || !entity.canBePushedByPiston() || entity instanceof Player) {
             return;
         }
 
         EntityMoveByPistonEvent event = new EntityMoveByPistonEvent(entity, entity.getPosition());
         this.level.getServer().getPluginManager().callEvent(event);
 
-        if (!event.isCancelled()) {
-            entity.onPushByPiston(this, moveDirection);
+        if (event.isCancelled()) {
+            return;
         }
+
+        entity.onPushByPiston(this, moveDirection);
+        if (entity.closed) {
+            return;
+        }
+
+        entity.move(
+                diff * moveDirection.getXOffset(),
+                diff * moveDirection.getYOffset() * (moveDirection == BlockFace.UP ? 2 : 1),
+                diff * moveDirection.getZOffset()
+        );
     }
 
-    public void move(boolean extending, List<BlockVector3> attachedBlocks) {
+    public void preMove(boolean extending, List<BlockVector3> attachedBlocks) {
         this.extending = extending;
         this.lastProgress = this.progress = extending ? 0 : 1;
         this.state = this.newState = extending ? 1 : 3;
         this.attachedBlocks = attachedBlocks;
         this.movable = false;
+    }
 
+    public void move() {
         this.level.addChunkPacket(this.getChunkX(), this.getChunkZ(), this.createSpawnPacket());
-        this.lastProgress = extending ? -MOVE_STEP : 1 + MOVE_STEP;
+        this.lastProgress = this.extending ? -MOVE_STEP : 1 + MOVE_STEP;
         this.moveCollidedEntities();
         this.scheduleUpdate();
+    }
+
+    public void move(boolean extending, List<BlockVector3> attachedBlocks) {
+        this.preMove(extending, attachedBlocks);
+        this.move();
     }
 
     @Override
@@ -175,18 +202,20 @@ public class BlockEntityPistonArm extends BlockEntitySpawnable {
             this.state = this.newState = extending ? 2 : 0;
 
             BlockFace pushDir = this.extending ? facing : facing.getOpposite();
+            List<BlockVector3> redstoneUpdates = new ArrayList<>();
 
             for (BlockVector3 pos : this.attachedBlocks) {
+                redstoneUpdates.add(pos);
+                redstoneUpdates.add(pos.getSide(pushDir));
                 BlockEntity movingBlock = this.level.getBlockEntity(pos.getSide(pushDir));
 
-                if (movingBlock instanceof BlockEntityMovingBlock) {
+                if (movingBlock instanceof BlockEntityMovingBlock movingBlockEntity) {
                     movingBlock.close();
-                    Block moved = movingBlock.getBlock();
+                    Block moved = movingBlockEntity.getMovingBlock();
+                    moved.position(movingBlock);
+                    moved.setLevel(this.level);
 
-                    this.level.setBlock(movingBlock, moved);
-                    this.level.scheduleUpdate(moved, 0);
-
-                    CompoundTag blockEntityNbt = ((BlockEntityMovingBlock) movingBlock).getBlockEntity();
+                    CompoundTag blockEntityNbt = movingBlockEntity.getMovingBlockEntityCompound();
 
                     if (blockEntityNbt != null) {
                         blockEntityNbt.putInt("x", movingBlock.getFloorX());
@@ -196,8 +225,17 @@ public class BlockEntityPistonArm extends BlockEntitySpawnable {
                         if (blockEntity != null && blockEntity.getBlock() instanceof BlockChest chest) {
                             chest.tryPair();
                         }
+                        this.level.setBlock(movingBlock, moved, true, true);
+                    } else {
+                        this.level.setBlock(movingBlock, moved, true, true);
                     }
+
+                    moved.onUpdate(Level.BLOCK_UPDATE_MOVED);
                 }
+            }
+
+            for (BlockVector3 updatePos : redstoneUpdates) {
+                RedstoneComponent.updateAllAroundRedstone(new Position(updatePos.x, updatePos.y, updatePos.z, this.level));
             }
 
             if (!extending) {

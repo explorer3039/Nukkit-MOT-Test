@@ -104,6 +104,7 @@ public class Level implements ChunkManager, Metadatable {
     public static final int BLOCK_UPDATE_TOUCH = 5;
     public static final int BLOCK_UPDATE_REDSTONE = 6;
     public static final int BLOCK_UPDATE_TICK = 7;
+    public static final int BLOCK_UPDATE_MOVED = 8;
 
     public static final int TIME_DAY = 1000;
     public static final int TIME_NOON = 6000;
@@ -1610,13 +1611,7 @@ public class Level implements ChunkManager, Metadatable {
     }
 
     public void updateAroundRedstone(@NotNull Vector3 pos, @Nullable BlockFace ignoredFace) {
-        for (BlockFace side : BlockFace.values()) {
-            if (ignoredFace != null && side == ignoredFace) {
-                continue;
-            }
-
-            this.getBlock(pos.getSideVec(side)).onUpdate(BLOCK_UPDATE_REDSTONE);
-        }
+        RedstoneComponent.updateAllAroundRedstone(Position.fromObject(pos, this), ignoredFace);
     }
 
     public void updateComparatorOutputLevel(Vector3 v) {

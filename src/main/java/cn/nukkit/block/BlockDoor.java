@@ -13,13 +13,17 @@ import cn.nukkit.math.AxisAlignedBB;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.SimpleAxisAlignedBB;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
+import com.google.common.collect.Sets;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.Set;
 
 /**
  * @author MagicDroidX
  * Nukkit Project
  */
-public abstract class BlockDoor extends BlockTransparentMeta implements Faceable {
+public abstract class BlockDoor extends BlockTransparentMeta implements RedstoneComponent, Faceable {
 
     public static final int DOOR_DIRECTION_BIT = 0x03;
     public static final int DOOR_OPEN_BIT = 0x04;
@@ -30,6 +34,7 @@ public abstract class BlockDoor extends BlockTransparentMeta implements Faceable
     public static final int DOOR_POWERED_BIT = 0x02;
 
     private static final int[] faces = {1, 2, 3, 0};
+    private static final Set<Location> MANUAL_OVERRIDES = Sets.newConcurrentHashSet();
 
     protected BlockDoor(int meta) {
         super(meta);
@@ -239,10 +244,11 @@ public abstract class BlockDoor extends BlockTransparentMeta implements Faceable
 
         if (type == Level.BLOCK_UPDATE_REDSTONE) {
             boolean powered = this.isGettingPower();
-            if ((!isOpen() && powered) || (isOpen() && !powered)) {
+            if (this.isOpen() != powered && !this.getManualOverride()) {
                 this.level.getServer().getPluginManager().callEvent(new BlockRedstoneEvent(this, isOpen() ? 15 : 0, isOpen() ? 0 : 15));
-
-                this.toggle(null);
+                this.setOpen(null, powered);
+            } else if (this.getManualOverride() && this.isOpen() == powered) {
+                this.setManualOverride(false);
             }
         }
 
@@ -285,10 +291,11 @@ public abstract class BlockDoor extends BlockTransparentMeta implements Faceable
                 return false;
             }
 
-            int direction = faces[player != null ? player.getDirection().getHorizontalIndex() : 0];
+            BlockFace playerDirection = player != null ? player.getDirection() : BlockFace.SOUTH;
+            int direction = faces[playerDirection.getHorizontalIndex()];
 
-            Block left = this.getSide(player.getDirection().rotateYCCW());
-            Block right = this.getSide(player.getDirection().rotateY());
+            Block left = this.getSide(playerDirection.rotateYCCW());
+            Block right = this.getSide(playerDirection.rotateY());
             int metaUp = DOOR_TOP_BIT;
             if (left.getId() == this.getId() || (!right.isTransparent() && left.isTransparent())) { //Door hinge
                 metaUp |= DOOR_HINGE_BIT;
@@ -298,8 +305,8 @@ public abstract class BlockDoor extends BlockTransparentMeta implements Faceable
             this.getLevel().setBlock(block, this, true, true); //Bottom
             this.getLevel().setBlock(blockUp, Block.get(this.getId(), metaUp), true); //Top
 
-            if (!this.isOpen() && this.level.isBlockPowered(this.getLocation())) {
-                this.toggle(null);
+            if (!this.isOpen() && this.isGettingPower()) {
+                this.setOpen(null, true);
                 metaUp |= DOOR_POWERED_BIT;
                 this.getLevel().setBlockDataAt(blockUp.getFloorX(), blockUp.getFloorY(), blockUp.getFloorZ(), metaUp);
             }
@@ -312,6 +319,7 @@ public abstract class BlockDoor extends BlockTransparentMeta implements Faceable
 
     @Override
     public boolean onBreak(Item item) {
+        this.setManualOverride(false);
         if (isTop(this.getDamage())) {
             Block down = this.down();
             if (down.getId() == this.getId()) {
@@ -347,6 +355,14 @@ public abstract class BlockDoor extends BlockTransparentMeta implements Faceable
     }
 
     public boolean toggle(Player player) {
+        return this.setOpen(player, !this.isOpen());
+    }
+
+    public boolean setOpen(Player player, boolean open) {
+        if (open == this.isOpen()) {
+            return false;
+        }
+
         DoorToggleEvent event = new DoorToggleEvent(this, player);
         this.getLevel().getServer().getPluginManager().callEvent(event);
 
@@ -368,9 +384,46 @@ public abstract class BlockDoor extends BlockTransparentMeta implements Faceable
             return false;
         }
 
-        this.level.setBlockDataAt(down.getFloorX(), down.getFloorY(), down.getFloorZ(), down.getDamage() ^ 0x04);
+        this.level.setBlockDataAt(down.getFloorX(), down.getFloorY(), down.getFloorZ(), (down.getDamage() & ~DOOR_OPEN_BIT) | (open ? DOOR_OPEN_BIT : 0));
+        if (player != null) {
+            this.setManualOverride(this.isGettingPower() || open);
+        }
         this.playOpenCloseSound();
         return true;
+    }
+
+    public void setManualOverride(boolean value) {
+        Location down;
+        Location up;
+        if (this.isTop()) {
+            down = this.down().getLocation();
+            up = this.getLocation();
+        } else {
+            down = this.getLocation();
+            up = this.up().getLocation();
+        }
+
+        if (value) {
+            MANUAL_OVERRIDES.add(down);
+            MANUAL_OVERRIDES.add(up);
+        } else {
+            MANUAL_OVERRIDES.remove(down);
+            MANUAL_OVERRIDES.remove(up);
+        }
+    }
+
+    public boolean getManualOverride() {
+        Location down;
+        Location up;
+        if (this.isTop()) {
+            down = this.down().getLocation();
+            up = this.getLocation();
+        } else {
+            down = this.getLocation();
+            up = this.up().getLocation();
+        }
+
+        return MANUAL_OVERRIDES.contains(down) || MANUAL_OVERRIDES.contains(up);
     }
 
     public void playOpenCloseSound() {

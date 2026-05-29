@@ -12,6 +12,7 @@ import cn.nukkit.math.BlockFace;
 import cn.nukkit.network.protocol.BlockEventPacket;
 import cn.nukkit.network.protocol.LevelSoundEventPacket;
 import cn.nukkit.utils.BlockColor;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -19,7 +20,7 @@ import org.jetbrains.annotations.Nullable;
  * Created by Snake1999 on 2016/1/17.
  * Package cn.nukkit.block in project nukkit.
  */
-public class BlockNoteblock extends BlockSolid implements BlockEntityHolder<BlockEntityMusic> {
+public class BlockNoteblock extends BlockSolid implements RedstoneComponent, BlockEntityHolder<BlockEntityMusic> {
 
     @Override
     public String getName() {
@@ -260,7 +261,7 @@ public class BlockNoteblock extends BlockSolid implements BlockEntityHolder<Bloc
         if (type == Level.BLOCK_UPDATE_REDSTONE) {
             BlockEntityMusic blockEntity = this.getBlockEntity();
             if (blockEntity != null) {
-                if (this.getLevel().isBlockPowered(this)) {
+                if (this.isGettingPower()) {
                     if (!blockEntity.isPowered()) {
                         this.emitSound();
                     }
@@ -271,6 +272,24 @@ public class BlockNoteblock extends BlockSolid implements BlockEntityHolder<Bloc
             }
         }
         return super.onUpdate(type);
+    }
+
+    public boolean isGettingPower() {
+        for (BlockFace side : BlockFace.values()) {
+            Block block = this.getSide(side);
+            if (block == null) {
+                continue;
+            }
+            if (block.getId() == Block.REDSTONE_WIRE && block.getDamage() > 0 && block.y >= this.getY()) {
+                return true;
+            }
+
+            if (this.level.isSidePowered(block, side)) {
+                return true;
+            }
+        }
+
+        return this.level.isBlockPowered(this);
     }
 
     public enum Instrument {

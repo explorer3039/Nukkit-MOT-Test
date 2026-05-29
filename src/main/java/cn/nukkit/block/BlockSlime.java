@@ -54,6 +54,11 @@ public class BlockSlime extends BlockSolid {
     }
 
     @Override
+    public boolean canSticksBlock() {
+        return true;
+    }
+
+    @Override
     public boolean diffusesSkyLight() {
         return true;
     }

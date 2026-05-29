@@ -2561,13 +2561,15 @@ public abstract class Entity extends Location implements Metadatable {
         }
     }
 
-    public void onPushByPiston(BlockEntityPistonArm piston, BlockFace moveDirection) {
-        if (this.closed){
-            return;
-        }
+    public boolean canBePushedByEntities() {
+        return true;
+    }
 
-        float diff = Math.abs(piston.progress - piston.lastProgress);
-        this.move(diff * moveDirection.getXOffset(), diff * moveDirection.getYOffset(), diff * moveDirection.getZOffset());
+    public boolean canBePushedByPiston() {
+        return true;
+    }
+
+    public void onPushByPiston(BlockEntityPistonArm piston, BlockFace moveDirection) {
     }
 
     public boolean onInteract(Player player, Item item, Vector3 clickedPos) {

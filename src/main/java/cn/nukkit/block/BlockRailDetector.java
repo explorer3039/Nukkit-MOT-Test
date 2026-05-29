@@ -7,6 +7,7 @@ import cn.nukkit.item.ItemBlock;
 import cn.nukkit.level.Level;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.SimpleAxisAlignedBB;
+import cn.nukkit.utils.RedstoneComponent;
 
 /**
  * Created on 2015/11/22 by CreeperFace.
@@ -16,7 +17,7 @@ import cn.nukkit.math.SimpleAxisAlignedBB;
  * Minecart and Riding Project,
  * Package cn.nukkit.block in project Nukkit.
  */
-public class BlockRailDetector extends BlockRail {
+public class BlockRailDetector extends BlockRail implements RedstoneComponent {
 
     public BlockRailDetector() {
         this(0);
@@ -49,7 +50,7 @@ public class BlockRailDetector extends BlockRail {
 
     @Override
     public int getStrongPower(BlockFace side) {
-        return isActive() ? 0 : (side == BlockFace.UP ? 15 : 0);
+        return isActive() ? (side == BlockFace.UP ? 15 : 0) : 0;
     }
 
     @Override
@@ -91,16 +92,20 @@ public class BlockRailDetector extends BlockRail {
 
         if (isPowered && !wasPowered) {
             setActive(true);
-            level.scheduleUpdate(this, this, 0);
-            level.scheduleUpdate(this, this.down(), 0);
+            updateAroundRedstone();
+            RedstoneComponent.updateAroundRedstone(this.getSide(BlockFace.DOWN));
             changed = true;
         }
 
         if (!isPowered && wasPowered) {
             setActive(false);
-            level.scheduleUpdate(this, this, 0);
-            level.scheduleUpdate(this, this.down(), 0);
+            updateAroundRedstone();
+            RedstoneComponent.updateAroundRedstone(this.getSide(BlockFace.DOWN));
             changed = true;
+        }
+
+        if (isPowered) {
+            level.scheduleUpdate(this, 20);
         }
 
         if (changed) {

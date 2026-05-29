@@ -1,10 +1,12 @@
 package cn.nukkit.block;
 
 import cn.nukkit.Player;
+import cn.nukkit.event.block.BlockRedstoneEvent;
 import cn.nukkit.event.block.DoorToggleEvent;
 import cn.nukkit.item.Item;
 import cn.nukkit.item.ItemTool;
 import cn.nukkit.level.Level;
+import cn.nukkit.level.Location;
 import cn.nukkit.level.Sound;
 import cn.nukkit.level.sound.DoorSound;
 import cn.nukkit.math.AxisAlignedBB;
@@ -12,17 +14,22 @@ import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.SimpleAxisAlignedBB;
 import cn.nukkit.utils.BlockColor;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
+import com.google.common.collect.Sets;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.Set;
 
 /**
  * Created on 2015/11/23 by xtypr.
  * Package cn.nukkit.block in project Nukkit .
  */
-public class BlockFenceGate extends BlockTransparentMeta implements Faceable {
+public class BlockFenceGate extends BlockTransparentMeta implements RedstoneComponent, Faceable {
 
     public static final int DIRECTIO_BIT = 0x03;
     public static final int OPEN_BIT = 0x04;
     public static final int IN_WALL_BIT = 0x08;
+    private static final Set<Location> MANUAL_OVERRIDES = Sets.newConcurrentHashSet();
 
     public BlockFenceGate() {
         this(0);
@@ -84,6 +91,9 @@ public class BlockFenceGate extends BlockTransparentMeta implements Faceable {
     public boolean place(@NotNull Item item, @NotNull Block block, @NotNull Block target, @NotNull BlockFace face, double fx, double fy, double fz, Player player) {
         this.setDamage(player != null ? player.getDirection().getHorizontalIndex() : 0);
         this.getLevel().setBlock(block, this, true, true);
+        if (!this.isOpen() && this.isGettingPower()) {
+            this.setOpen(null, true);
+        }
 
         return true;
     }
@@ -110,6 +120,14 @@ public class BlockFenceGate extends BlockTransparentMeta implements Faceable {
     }
 
     public boolean toggle(Player player) {
+        return this.setOpen(player, !this.isOpen());
+    }
+
+    public boolean setOpen(Player player, boolean open) {
+        if (open == this.isOpen()) {
+            return false;
+        }
+
         DoorToggleEvent event = new DoorToggleEvent(this, player);
         this.getLevel().getServer().getPluginManager().callEvent(event);
 
@@ -154,8 +172,11 @@ public class BlockFenceGate extends BlockTransparentMeta implements Faceable {
             }
         }
 
-        this.setDamage(direction | ((~this.getDamage()) & OPEN_BIT));
+        this.setDamage(direction | (open ? OPEN_BIT : 0));
         this.level.setBlock(this, this, false, true);
+        if (player != null) {
+            this.setManualOverride(this.isGettingPower() || open);
+        }
         if (this.isOpen()) {
             this.level.addSound(this, Sound.RANDOM_DOOR_OPEN);
         } else {
@@ -171,13 +192,36 @@ public class BlockFenceGate extends BlockTransparentMeta implements Faceable {
     @Override
     public int onUpdate(int type) {
         if (type == Level.BLOCK_UPDATE_REDSTONE) {
-            if ((!isOpen() && this.level.isBlockPowered(this.getLocation())) || (isOpen() && !this.level.isBlockPowered(this.getLocation()))) {
-                this.toggle(null);
+            boolean powered = this.isGettingPower();
+            if (this.isOpen() != powered && !this.getManualOverride()) {
+                this.level.getServer().getPluginManager().callEvent(new BlockRedstoneEvent(this, this.isOpen() ? 15 : 0, this.isOpen() ? 0 : 15));
+                this.setOpen(null, powered);
+                return type;
+            } else if (this.getManualOverride() && this.isOpen() == powered) {
+                this.setManualOverride(false);
                 return type;
             }
         }
 
         return 0;
+    }
+
+    public boolean isGettingPower() {
+        for (BlockFace side : BlockFace.values()) {
+            Block block = this.getSide(side);
+            if (block == null) {
+                continue;
+            }
+            if (block.getId() == Block.REDSTONE_WIRE && block.getDamage() > 0 && block.y >= this.getY()) {
+                return true;
+            }
+
+            if (this.level.isSidePowered(block, side)) {
+                return true;
+            }
+        }
+
+        return this.level.isBlockPowered(this.getLocation());
     }
     
     @Override
@@ -193,5 +237,17 @@ public class BlockFenceGate extends BlockTransparentMeta implements Faceable {
     @Override
     public boolean canPassThrough() {
         return this.isOpen();
+    }
+
+    public void setManualOverride(boolean value) {
+        if (value) {
+            MANUAL_OVERRIDES.add(this.getLocation());
+        } else {
+            MANUAL_OVERRIDES.remove(this.getLocation());
+        }
+    }
+
+    public boolean getManualOverride() {
+        return MANUAL_OVERRIDES.contains(this.getLocation());
     }
 }

@@ -5,12 +5,12 @@ import cn.nukkit.item.Item;
 import cn.nukkit.item.ItemBlock;
 import cn.nukkit.level.Level;
 import cn.nukkit.math.BlockFace;
-import cn.nukkit.math.Vector3;
+import cn.nukkit.utils.RedstoneComponent;
 
 /**
  * Created by CreeperFace on 10.4.2017.
  */
-public class BlockRedstoneTorchUnlit extends BlockTorch {
+public class BlockRedstoneTorchUnlit extends BlockTorch implements RedstoneComponent {
 
     public BlockRedstoneTorchUnlit() {
         this(0);
@@ -63,18 +63,10 @@ public class BlockRedstoneTorchUnlit extends BlockTorch {
 
     protected boolean checkState() {
         BlockFace face = getBlockFace().getOpposite();
-        Vector3 pos = getLocation();
 
-        if (!this.level.isSidePowered(pos.getSide(face), face)) {
-            this.level.setBlock(pos, Block.get(REDSTONE_TORCH, getDamage()), false, true);
-
-            for (BlockFace side : BlockFace.values()) {
-                if (side == face) {
-                    continue;
-                }
-
-                this.level.updateAroundRedstone(pos.getSide(side), null);
-            }
+        if (!this.level.isSidePowered(this.getSide(face), face)) {
+            this.level.setBlock(this, Block.get(REDSTONE_TORCH, getDamage()), false, true);
+            updateAllAroundRedstone(face);
             return true;
         }
 

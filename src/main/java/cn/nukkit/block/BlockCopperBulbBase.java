@@ -4,6 +4,7 @@ import cn.nukkit.Player;
 import cn.nukkit.block.properties.enums.OxidizationLevel;
 import cn.nukkit.event.redstone.RedstoneUpdateEvent;
 import cn.nukkit.item.Item;
+import cn.nukkit.item.ItemTool;
 import cn.nukkit.level.Level;
 import cn.nukkit.math.BlockFace;
 import org.jetbrains.annotations.NotNull;
@@ -38,7 +39,7 @@ public abstract class BlockCopperBulbBase extends BlockSolidMeta implements Oxid
                 return 0;
             }
 
-            if ((this.level.isBlockPowered(this))) {
+            if (this.isGettingRedstonePower()) {
                 this.setLit(!(isLit()));
                 this.setPowered(true);
                 this.getLevel().setBlock(this, this, true, true);
@@ -55,6 +56,16 @@ public abstract class BlockCopperBulbBase extends BlockSolidMeta implements Oxid
     }
 
     @Override
+    public boolean hasComparatorInputOverride() {
+        return true;
+    }
+
+    @Override
+    public int getComparatorInputOverride() {
+        return isLit() ? 15 : 0;
+    }
+
+    @Override
     public boolean onActivate(@NotNull Item item, Player player) {
         return Waxable.super.onActivate(item, player)
                 || Oxidizable.super.onActivate(item, player);
@@ -67,12 +78,22 @@ public abstract class BlockCopperBulbBase extends BlockSolidMeta implements Oxid
 
     @Override
     public double getHardness() {
-        return 0.3D;
+        return 3D;
     }
 
     @Override
     public double getResistance() {
-        return 1.5D;
+        return 6D;
+    }
+
+    @Override
+    public int getToolType() {
+        return ItemTool.TYPE_PICKAXE;
+    }
+
+    @Override
+    public int getToolTier() {
+        return ItemTool.TIER_STONE;
     }
 
     public boolean isLit() {

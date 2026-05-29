@@ -8,13 +8,14 @@ import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.utils.BlockColor;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * @author Angelic47
  * Nukkit Project
  */
-public class BlockRedstoneTorch extends BlockTorch implements Faceable {
+public class BlockRedstoneTorch extends BlockTorch implements RedstoneComponent, Faceable {
 
     public BlockRedstoneTorch() {
         this(0);
@@ -64,17 +65,8 @@ public class BlockRedstoneTorch extends BlockTorch implements Faceable {
     public boolean onBreak(Item item) {
         super.onBreak(item);
 
-        Vector3 pos = getLocation();
-
         BlockFace face = getBlockFace().getOpposite();
-
-        for (BlockFace side : BlockFace.values()) {
-            if (side == face) {
-                continue;
-            }
-
-            this.level.updateAroundRedstone(pos.getSide(side), null);
-        }
+        updateAllAroundRedstone(face);
         return true;
     }
 
@@ -103,17 +95,8 @@ public class BlockRedstoneTorch extends BlockTorch implements Faceable {
     protected boolean checkState() {
         if (isPoweredFromSide()) {
             BlockFace face = getBlockFace().getOpposite();
-            Vector3 pos = getLocation();
-
-            this.level.setBlock(pos, Block.get(UNLIT_REDSTONE_TORCH, getDamage()), false, true);
-
-            for (BlockFace side : BlockFace.values()) {
-                if (side == face) {
-                    continue;
-                }
-
-                this.level.updateAroundRedstone(pos.getSide(side), null);
-            }
+            this.level.setBlock(this, Block.get(UNLIT_REDSTONE_TORCH, getDamage()), false, true);
+            updateAllAroundRedstone(face);
 
             return true;
         }

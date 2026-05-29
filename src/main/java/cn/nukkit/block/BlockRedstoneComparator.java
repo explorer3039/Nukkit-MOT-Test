@@ -11,6 +11,7 @@ import cn.nukkit.math.BlockFace;
 import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.nbt.tag.ListTag;
 import cn.nukkit.utils.BlockColor;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -154,12 +155,12 @@ public abstract class BlockRedstoneComparator extends BlockRedstoneDiode impleme
     private void onChange() {
         int output = this.calculateOutput();
         BlockEntity blockEntity = this.level.getBlockEntity(this);
-        int currentOutput = 0;
-
-        if (blockEntity instanceof BlockEntityComparator blockEntityComparator) {
-            currentOutput = blockEntityComparator.getOutputSignal();
-            blockEntityComparator.setOutputSignal(output);
+        if (!(blockEntity instanceof BlockEntityComparator blockEntityComparator)) {
+            return;
         }
+
+        int currentOutput = blockEntityComparator.getOutputSignal();
+        blockEntityComparator.setOutputSignal(output);
 
         if (currentOutput != output || getMode() == Mode.COMPARE) {
             boolean shouldBePowered = this.shouldBePowered();
@@ -167,14 +168,15 @@ public abstract class BlockRedstoneComparator extends BlockRedstoneDiode impleme
 
             if (isPowered && !shouldBePowered) {
                 this.level.setBlock(this, getUnpowered(), true, true);
+                this.level.updateComparatorOutputLevelSelective(this, true);
             } else if (!isPowered && shouldBePowered) {
                 this.level.setBlock(this, getPowered(), true, true);
+                this.level.updateComparatorOutputLevelSelective(this, true);
             }
 
-            this.level.updateAroundRedstone(this, null); //TODO: remove
-            //Block side = this.getSide(getFacing().getOpposite());
-            //side.onUpdate(Level.BLOCK_UPDATE_REDSTONE);
-            //this.level.updateAroundRedstone(side, null);
+            Block side = this.getSide(getFacing().getOpposite());
+            side.onUpdate(Level.BLOCK_UPDATE_REDSTONE);
+            RedstoneComponent.updateAroundRedstone(side);
         }
     }
 

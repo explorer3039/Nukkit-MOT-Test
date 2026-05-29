@@ -216,6 +216,20 @@ public abstract class BlockShelf extends BlockTransparentMeta implements Faceabl
     }
 
     public boolean isGettingPower() {
+        for (BlockFace side : BlockFace.values()) {
+            Block block = this.getSide(side);
+            if (block == null) {
+                continue;
+            }
+            if (block.getId() == Block.REDSTONE_WIRE && block.getDamage() > 0 && block.y >= this.getY()) {
+                return true;
+            }
+
+            if (this.level.isSidePowered(block, side)) {
+                return true;
+            }
+        }
+
         return this.level.isBlockPowered(this);
     }
 

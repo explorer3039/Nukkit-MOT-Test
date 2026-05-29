@@ -668,6 +668,10 @@ public abstract class Block extends Position implements Metadatable, Cloneable, 
         return true;
     }
 
+    public boolean canSticksBlock() {
+        return false;
+    }
+
     public boolean hasComparatorInputOverride() {
         return false;
     }
@@ -1065,6 +1069,29 @@ public abstract class Block extends Position implements Metadatable, Cloneable, 
         }
 
         return Block.get(AIR, 0, Position.fromObject(new Vector3(this.x, this.y, this.z).getSide(face, 1)), 0);
+    }
+
+    protected boolean isGettingRedstonePower() {
+        if (this.level == null) {
+            return false;
+        }
+
+        for (BlockFace side : BlockFace.values()) {
+            Block block = this.getSide(side);
+            if (block == null) {
+                continue;
+            }
+
+            if (block.getId() == Block.REDSTONE_WIRE && block.getDamage() > 0 && block.y >= this.getY()) {
+                return true;
+            }
+
+            if (this.level.isSidePowered(block, side)) {
+                return true;
+            }
+        }
+
+        return this.level.isBlockPowered(this);
     }
 
     @Override

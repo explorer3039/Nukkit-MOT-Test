@@ -83,10 +83,11 @@ public class BlockTripWire extends BlockFlowable {
 
         if (!powered) {
             this.setPowered(true);
-            this.level.setBlock(this, this, true, true);
+            this.level.setBlock(this, this, true, false);
             this.updateHook(false);
 
             this.level.scheduleUpdate(this, 10);
+            this.level.updateComparatorOutputLevelSelective(this, true);
         }
     }
 
@@ -136,8 +137,9 @@ public class BlockTripWire extends BlockFlowable {
                 this.level.scheduleUpdate(this, 10);
             } else {
                 this.setPowered(false);
-                this.level.setBlock(this, this, true, true);
+                this.level.setBlock(this, this, true, false);
                 this.updateHook(false);
+                this.level.updateComparatorOutputLevelSelective(this, true);
             }
             return type;
         }
