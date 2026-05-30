@@ -62,11 +62,13 @@ public class BlockRedstoneTorchUnlit extends BlockTorch implements RedstoneCompo
     }
 
     protected boolean checkState() {
-        BlockFace face = getBlockFace().getOpposite();
-
-        if (!this.isPoweredFromSide()) {
-            this.level.setBlock(getLocation(), Block.get(REDSTONE_TORCH, getDamage()), false, true);
-            updateAllAroundRedstone(face);
+        if (!isPoweredFromSide()) {
+            if (BlockRedstoneTorch.isBurnedOut(this)) {
+                this.level.scheduleUpdate(this, BlockRedstoneTorch.BURNOUT_COOLDOWN_TICKS);
+                return false;
+            }
+            this.level.setBlock(this, Block.get(REDSTONE_TORCH, getDamage()), false, true);
+            updateAllAroundRedstone(getBlockFace().getOpposite());
             return true;
         }
 
@@ -75,12 +77,7 @@ public class BlockRedstoneTorchUnlit extends BlockTorch implements RedstoneCompo
 
     protected boolean isPoweredFromSide() {
         BlockFace face = getBlockFace().getOpposite();
-        Block side = this.getSide(face);
-        if (side instanceof BlockPistonBase && ((BlockPistonBase) side).isGettingPower()) {
-            return true;
-        }
-
-        return this.level.isSidePowered(side, face);
+        return this.level.isSidePowered(this.getSide(face), face);
     }
 
     @Override
