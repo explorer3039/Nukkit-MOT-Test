@@ -6,6 +6,7 @@ import cn.nukkit.block.BlockChest;
 import cn.nukkit.block.BlockID;
 import cn.nukkit.entity.Entity;
 import cn.nukkit.event.entity.EntityMoveByPistonEvent;
+import cn.nukkit.level.Position;
 import cn.nukkit.level.format.FullChunk;
 import cn.nukkit.math.AxisAlignedBB;
 import cn.nukkit.math.BlockFace;
@@ -15,6 +16,7 @@ import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.nbt.tag.IntTag;
 import cn.nukkit.nbt.tag.ListTag;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +26,7 @@ import java.util.List;
  */
 public class BlockEntityPistonArm extends BlockEntitySpawnable {
 
-    public static final float MOVE_STEP = 0.5f;
+    public static final float MOVE_STEP = 0.25f;
 
     public float progress;
     public float lastProgress = 1;
@@ -175,8 +177,11 @@ public class BlockEntityPistonArm extends BlockEntitySpawnable {
             this.state = this.newState = extending ? 2 : 0;
 
             BlockFace pushDir = this.extending ? facing : facing.getOpposite();
+            List<BlockVector3> redstoneUpdates = new ArrayList<>();
 
             for (BlockVector3 pos : this.attachedBlocks) {
+                redstoneUpdates.add(pos);
+                redstoneUpdates.add(pos.getSide(pushDir));
                 BlockEntity movingBlock = this.level.getBlockEntity(pos.getSide(pushDir));
 
                 if (movingBlock instanceof BlockEntityMovingBlock) {
@@ -184,6 +189,7 @@ public class BlockEntityPistonArm extends BlockEntitySpawnable {
                     Block moved = movingBlock.getBlock();
 
                     this.level.setBlock(movingBlock, moved);
+                    moved.onUpdate(cn.nukkit.level.Level.BLOCK_UPDATE_MOVED);
                     this.level.scheduleUpdate(moved, 0);
 
                     CompoundTag blockEntityNbt = ((BlockEntityMovingBlock) movingBlock).getBlockEntity();
@@ -198,6 +204,10 @@ public class BlockEntityPistonArm extends BlockEntitySpawnable {
                         }
                     }
                 }
+            }
+
+            for (BlockVector3 update : redstoneUpdates) {
+                RedstoneComponent.updateAllAroundRedstone(new Position(update.x, update.y, update.z, this.level));
             }
 
             if (!extending) {
@@ -224,7 +234,8 @@ public class BlockEntityPistonArm extends BlockEntitySpawnable {
 
     @Override
     public boolean isBlockEntityValid() {
-        return true;
+        int blockId = getBlock().getId();
+        return blockId == BlockID.PISTON || blockId == BlockID.STICKY_PISTON;
     }
 
     @Override

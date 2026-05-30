@@ -9,12 +9,13 @@ import cn.nukkit.level.sound.LeverSound;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.utils.BlockColor;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * @author Nukkit Project Team
  */
-public class BlockLever extends BlockFlowable implements Faceable {
+public class BlockLever extends BlockFlowable implements RedstoneComponent, Faceable {
 
     public BlockLever() {
         this(0);
@@ -73,8 +74,8 @@ public class BlockLever extends BlockFlowable implements Faceable {
 
         LeverOrientation orientation = LeverOrientation.byMetadata(this.isPowerOn() ? this.getDamage() ^ 0x08 : this.getDamage());
         BlockFace face = orientation.getFacing();
-        level.updateAroundRedstone(this.getLocation(), null);
-        this.level.updateAroundRedstone(this.getLocation().getSide(face.getOpposite()), isPowerOn() ? face : null);
+        updateAroundRedstone();
+        RedstoneComponent.updateAroundRedstone(this.getSide(face.getOpposite()), isPowerOn() ? face : null);
         return true;
     }
 
@@ -94,7 +95,7 @@ public class BlockLever extends BlockFlowable implements Faceable {
     public boolean place(@NotNull Item item, @NotNull Block block, @NotNull Block target, @NotNull BlockFace face, double fx, double fy, double fz, Player player) {
         LeverOrientation faces = LeverOrientation.forFacings(face, player.getHorizontalFacing());
         this.setDamage(faces.getMetadata());
-        if (!isSupportValid(this.getSide(faces.facing.getOpposite()))) {
+        if (!isSupportValid(target)) {
             return false;
         }
         return this.getLevel().setBlock(block, this, true, true);
@@ -111,21 +112,32 @@ public class BlockLever extends BlockFlowable implements Faceable {
 
             LeverOrientation orientation = LeverOrientation.byMetadata(this.getDamage() ^ 0x08);
             BlockFace face = orientation.getFacing();
-            this.level.updateAroundRedstone(this, null);
-            this.level.updateAroundRedstone(this.getSideVec(face.getOpposite()), face);
+            updateAroundRedstone();
+            RedstoneComponent.updateAroundRedstone(this.getSide(face.getOpposite()), face);
         }
 
         return true;
     }
 
     private boolean isSupportValid(Block block) {
-        if (!block.isTransparent()) {
+        if (block.getId() == FARMLAND || block.getId() == GRASS_PATH) {
             return true;
         }
-        if (BlockFace.fromIndex(isPowerOn() ? getDamage() ^ 0x08 : getDamage()) == BlockFace.DOWN) {
-            return Block.canStayOnFullSolid(block);
+
+        BlockFace attachedFace = LeverOrientation.byMetadata(isPowerOn() ? getDamage() ^ 0x08 : getDamage()).getFacing();
+        if ((block instanceof BlockWall || block instanceof BlockFence) && attachedFace == BlockFace.UP) {
+            return true;
         }
-        return Block.canConnectToFullSolid(block);
+
+        if (attachedFace == BlockFace.DOWN) {
+            return block.isSolid(BlockFace.DOWN) && !block.isTransparent();
+        }
+
+        if (block.isSolid(attachedFace)) {
+            return true;
+        }
+
+        return !block.isTransparent();
     }
 
     @Override

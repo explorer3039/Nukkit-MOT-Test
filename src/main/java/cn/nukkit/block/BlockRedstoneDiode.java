@@ -10,12 +10,13 @@ import cn.nukkit.math.SimpleAxisAlignedBB;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.utils.BlockColor;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * @author CreeperFace
  */
-public abstract class BlockRedstoneDiode extends BlockFlowable implements Faceable {
+public abstract class BlockRedstoneDiode extends BlockFlowable implements RedstoneComponent, Faceable {
 
     protected boolean isPowered = false;
 
@@ -39,19 +40,15 @@ public abstract class BlockRedstoneDiode extends BlockFlowable implements Faceab
 
     @Override
     public boolean onBreak(Item item) {
-        Vector3 pos = getLocation();
         this.level.setBlock(this, Block.get(BlockID.AIR), true, true);
-
-        for (BlockFace face : BlockFace.values()) {
-            this.level.updateAroundRedstone(pos.getSide(face), null);
-        }
+        updateAllAroundRedstone();
 
         return true;
     }
 
     @Override
     public boolean place(@NotNull Item item, @NotNull Block block, @NotNull Block target, @NotNull BlockFace face, double fx, double fy, double fz, Player player) {
-        if (block.getSide(BlockFace.DOWN).isTransparent() && !(this.down() instanceof BlockSlab)) {
+        if (!isSupportValid(block.getSide(BlockFace.DOWN))) {
             return false;
         }
 
@@ -64,6 +61,10 @@ public abstract class BlockRedstoneDiode extends BlockFlowable implements Faceab
         return true;
     }
 
+    protected boolean isSupportValid(Block support) {
+        return !support.isTransparent() || support instanceof BlockSlab || support instanceof BlockCauldron;
+    }
+
     @Override
     public int onUpdate(int type) {
         if (type == Level.BLOCK_UPDATE_SCHEDULED) {
@@ -73,16 +74,20 @@ public abstract class BlockRedstoneDiode extends BlockFlowable implements Faceab
 
                 if (this.isPowered && !shouldBePowered) {
                     this.level.setBlock(pos, this.getUnpowered(), true, true);
+                    this.isPowered = false;
 
-                    this.level.updateAroundRedstone(this.getLocation().getSide(getFacing().getOpposite()), null);
+                    Block side = this.getSide(getFacing().getOpposite());
+                    side.onUpdate(Level.BLOCK_UPDATE_REDSTONE);
+                    RedstoneComponent.updateAroundRedstone(side);
                 } else if (!this.isPowered) {
                     this.level.setBlock(pos, this.getPowered(), true, true);
-                    this.level.updateAroundRedstone(this.getLocation().getSide(getFacing().getOpposite()), null);
+                    this.isPowered = true;
 
-                    if (!shouldBePowered) {
-                        level.scheduleUpdate(getPowered(), this, this.getDelay());
-                    }
+                    Block side = this.getSide(getFacing().getOpposite());
+                    side.onUpdate(Level.BLOCK_UPDATE_REDSTONE);
+                    RedstoneComponent.updateAroundRedstone(side);
                 }
+                return type;
             }
         } else if (type == Level.BLOCK_UPDATE_NORMAL || type == Level.BLOCK_UPDATE_REDSTONE) {
             // Redstone event
@@ -91,7 +96,7 @@ public abstract class BlockRedstoneDiode extends BlockFlowable implements Faceab
             if (ev.isCancelled()) {
                 return 0;
             }
-            if (type == Level.BLOCK_UPDATE_NORMAL && this.getSide(BlockFace.DOWN).isTransparent() && !(this.down() instanceof BlockSlab)) {
+            if (type == Level.BLOCK_UPDATE_NORMAL && !isSupportValid(this.getSide(BlockFace.DOWN))) {
                 this.level.useBreakOn(this);
                 return Level.BLOCK_UPDATE_NORMAL;
             } else {
@@ -104,17 +109,9 @@ public abstract class BlockRedstoneDiode extends BlockFlowable implements Faceab
 
     public void updateState() {
         if (!this.isLocked()) {
-            boolean shouldPowered = this.shouldBePowered();
+            boolean shouldBePowered = this.shouldBePowered();
 
-            if ((this.isPowered && !shouldPowered || !this.isPowered && shouldPowered) && !this.level.isBlockTickPending(this, this)) {
-                /*int priority = -1;
-
-                if (this.isFacingTowardsRepeater()) {
-                    priority = -3;
-                } else if (this.isPowered) {
-                    priority = -2;
-                }*/
-
+            if (this.isPowered && !shouldBePowered || !this.isPowered && shouldBePowered) {
                 this.level.scheduleUpdate(this, this, this.getDelay());
             }
         }

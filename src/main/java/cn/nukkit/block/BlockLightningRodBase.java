@@ -13,6 +13,7 @@ import cn.nukkit.level.Level;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.utils.BlockColor;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -21,7 +22,7 @@ import org.jetbrains.annotations.Nullable;
  * <p>
  * Adapted from PowerNukkitX (<a href="https://github.com/PowerNukkitX/PowerNukkitX">PowerNukkitX</a>).
  */
-public abstract class BlockLightningRodBase extends BlockTransparentMeta implements Faceable, BlockPropertiesHelper, Oxidizable, Waxable {
+public abstract class BlockLightningRodBase extends BlockTransparentMeta implements RedstoneComponent, Faceable, BlockPropertiesHelper, Oxidizable, Waxable {
 
     public static final int FACING_DIRECTION_MASK = 0x07;
     public static final int POWERED_BIT = 0x08;
@@ -198,8 +199,8 @@ public abstract class BlockLightningRodBase extends BlockTransparentMeta impleme
     }
 
     private void updateRedstoneNeighbours() {
-        this.level.updateAroundRedstone(this, null);
-        this.level.updateAroundRedstone(this.getSideVec(this.getBlockFace().getOpposite()), null);
+        updateAroundRedstone();
+        RedstoneComponent.updateAroundRedstone(this.getSide(this.getBlockFace().getOpposite()));
     }
 
     @Override

@@ -10,10 +10,11 @@ import cn.nukkit.level.Level;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.plugin.PluginManager;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class BlockObserver extends BlockSolidMeta implements Faceable {
+public class BlockObserver extends BlockSolidMeta implements RedstoneComponent, Faceable {
 
     private static final int FACE_BIT = 0x7; //0111
     private static final int POWERED_BIT = 0x8; //1000
@@ -123,7 +124,7 @@ public class BlockObserver extends BlockSolidMeta implements Faceable {
 
     @Override
     public int onUpdate(int type) {
-        if (type == Level.BLOCK_UPDATE_SCHEDULED) {
+        if (type == Level.BLOCK_UPDATE_SCHEDULED || type == Level.BLOCK_UPDATE_MOVED) {
             RedstoneUpdateEvent ev = new RedstoneUpdateEvent(this);
             PluginManager pluginManager = level.getServer().getPluginManager();
             pluginManager.callEvent(ev);
@@ -173,7 +174,7 @@ public class BlockObserver extends BlockSolidMeta implements Faceable {
         BlockFace facing = getBlockFace();
         Block outputBlock = getSide(facing.getOpposite());
         outputBlock.onUpdate(Level.BLOCK_UPDATE_REDSTONE);
-        this.level.updateAroundRedstone(outputBlock, facing);
+        RedstoneComponent.updateAroundRedstone(outputBlock, facing);
     }
 
     public boolean isPowered() {

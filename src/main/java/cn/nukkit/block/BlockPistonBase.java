@@ -16,6 +16,7 @@ import cn.nukkit.math.Vector3;
 import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.network.protocol.LevelSoundEventPacket;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import com.google.common.collect.Lists;
 import org.jetbrains.annotations.NotNull;
 
@@ -27,7 +28,7 @@ import java.util.stream.Collectors;
 /**
  * @author CreeperFace
  */
-public abstract class BlockPistonBase extends BlockSolidMeta implements Faceable, BlockEntityHolder<BlockEntityPistonArm> {
+public abstract class BlockPistonBase extends BlockSolidMeta implements Faceable, RedstoneComponent, BlockEntityHolder<BlockEntityPistonArm> {
 
     public boolean sticky = false;
 
@@ -122,22 +123,35 @@ public abstract class BlockPistonBase extends BlockSolidMeta implements Faceable
 
     @Override
     public int onUpdate(int type) {
-        if (type != Level.BLOCK_UPDATE_NORMAL && type != Level.BLOCK_UPDATE_REDSTONE && type != Level.BLOCK_UPDATE_SCHEDULED) {
-            return 0;
+        if (type == Level.BLOCK_UPDATE_NORMAL || type == Level.BLOCK_UPDATE_REDSTONE) {
+            level.scheduleUpdate(this, 0);
+            return type;
         }
 
-        BlockEntity blockEntity = this.level.getBlockEntity(this);
-        if (blockEntity instanceof BlockEntityPistonArm arm) {
-            boolean powered = this.isPowered();
+        if (type == Level.BLOCK_UPDATE_SCHEDULED) {
+            BlockEntity blockEntity = this.level.getBlockEntity(this);
+            if (blockEntity instanceof BlockEntityPistonArm arm) {
+                boolean powered = this.isGettingPower();
+                this.updateAroundRedstoneTorches(powered);
 
-            if (arm.state % 2 == 0 && arm.powered != powered && this.checkState(powered)) {
-                arm.powered = powered;
-                if (arm.chunk != null) {
-                    arm.chunk.setChanged();
+                if (arm.state % 2 == 0 && arm.powered != powered && this.checkState(powered)) {
+                    arm.powered = powered;
+                    if (arm.chunk != null) {
+                        arm.chunk.setChanged();
+                    }
+                    if (powered && !isExtended()) {
+                        level.scheduleUpdate(this, 2);
+                    }
+                    return type;
+                }
+
+                if (powered && !isExtended() && !checkState(true)) {
+                    level.scheduleUpdate(this, 2);
                 }
             }
+            return type;
         }
-        return type;
+        return 0;
     }
 
     private boolean checkState(Boolean isPowered) {
@@ -164,7 +178,7 @@ public abstract class BlockPistonBase extends BlockSolidMeta implements Faceable
         return false;
     }
 
-    private boolean isPowered() {
+    public boolean isGettingPower() {
         BlockFace face = this.getBlockFace();
 
         for (BlockFace side : BlockFace.values()) {
@@ -182,6 +196,23 @@ public abstract class BlockPistonBase extends BlockSolidMeta implements Faceable
             }
         }
         return false;
+    }
+
+    private boolean isPowered() {
+        return isGettingPower();
+    }
+
+    protected void updateAroundRedstoneTorches(boolean powered) {
+        for (BlockFace side : BlockFace.values()) {
+            Block sideBlock = getSide(side);
+            if ((sideBlock instanceof BlockRedstoneTorch && powered)
+                    || (sideBlock instanceof BlockRedstoneTorchUnlit && !powered)) {
+                BlockFace torchSupportFace = ((BlockTorch) sideBlock).getBlockFace().getOpposite();
+                if (sideBlock.getSide(torchSupportFace).equals(this)) {
+                    sideBlock.onUpdate(Level.BLOCK_UPDATE_REDSTONE);
+                }
+            }
+        }
     }
 
     private boolean doMove(boolean extending) {
@@ -350,8 +381,7 @@ public abstract class BlockPistonBase extends BlockSolidMeta implements Faceable
             }
 
             for (Block b : new ArrayList<>(this.toMove)) {
-                int blockId = b.getId();
-                if ((blockId == SLIME_BLOCK) && !this.addBranchingBlocks(b)) {
+                if (b.canSticksBlock() && !this.addBranchingBlocks(b)) {
                     return false;
                 }
             }
@@ -359,9 +389,17 @@ public abstract class BlockPistonBase extends BlockSolidMeta implements Faceable
         }
 
         private boolean addBlockLine(Block origin, BlockFace from) {
+            return this.addBlockLine(origin, origin.getSide(from), true);
+        }
+
+        private boolean addBlockLine(Block origin, Block from, boolean mainBlockLine) {
             Block block = origin.clone();
 
             if (block.getId() == AIR) {
+                return true;
+            }
+
+            if (!mainBlockLine && block.canSticksBlock() && from.canSticksBlock() && block.getId() != from.getId()) {
                 return true;
             }
 
@@ -386,8 +424,13 @@ public abstract class BlockPistonBase extends BlockSolidMeta implements Faceable
             int count = 1;
             List<Block> sticked = new ArrayList<>();
 
-            while (block.getId() == SLIME_BLOCK) {
+            while (block.canSticksBlock()) {
+                Block oldBlock = block.clone();
                 block = origin.getSide(this.moveDirection.getOpposite(), count);
+
+                if ((!extending || !mainBlockLine) && block.canSticksBlock() && oldBlock.canSticksBlock() && block.getId() != oldBlock.getId()) {
+                    break;
+                }
 
                 if (block.getId() == AIR || !canPush(block, this.moveDirection, false, extending) || block.equals(this.pistonPos)) {
                     break;
@@ -423,7 +466,7 @@ public abstract class BlockPistonBase extends BlockSolidMeta implements Faceable
                     for (int i = 0; i <= index + stickedCount; ++i) {
                         Block b = this.toMove.get(i);
 
-                        if (b.getId() == SLIME_BLOCK && !this.addBranchingBlocks(b)) {
+                        if (b.canSticksBlock() && !this.addBranchingBlocks(b)) {
                             return false;
                         }
                     }
@@ -466,7 +509,7 @@ public abstract class BlockPistonBase extends BlockSolidMeta implements Faceable
 
         private boolean addBranchingBlocks(Block block) {
             for (BlockFace face : BlockFace.values()) {
-                if (face.getAxis() != this.moveDirection.getAxis() && !this.addBlockLine(block.getSide(face), face)) {
+                if (face.getAxis() != this.moveDirection.getAxis() && !this.addBlockLine(block.getSide(face), block, false)) {
                     return false;
                 }
             }

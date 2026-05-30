@@ -7,12 +7,13 @@ import cn.nukkit.level.Level;
 import cn.nukkit.level.sound.ButtonClickSound;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Created by CreeperFace on 27. 11. 2016.
  */
-public abstract class BlockButton extends BlockFlowable implements Faceable {
+public abstract class BlockButton extends BlockFlowable implements RedstoneComponent, Faceable {
 
     public static final int BUTTON_PRESSED_BIT = 0x08;
     public static final int FACING_DIRECTION_BIT = 0x07;
@@ -49,7 +50,7 @@ public abstract class BlockButton extends BlockFlowable implements Faceable {
     public boolean place(@NotNull Item item, @NotNull Block block, @NotNull Block target, @NotNull BlockFace face, double fx, double fy, double fz, Player player) {
 
         this.setDamage(face.getIndex());
-        if (!isSupportValid(this.getSide(this.getFacing().getOpposite()))) {
+        if (!isSupportValid(target)) {
             return false;
         }
         this.level.setBlock(block, this, true, true);
@@ -73,8 +74,8 @@ public abstract class BlockButton extends BlockFlowable implements Faceable {
         this.level.addSound(new ButtonClickSound(this.add(0.5, 0.5, 0.5)));
         this.level.scheduleUpdate(this, 30);
 
-        level.updateAroundRedstone(getLocation(), null);
-        level.updateAroundRedstone(getLocation().getSide(getFacing().getOpposite()), null);
+        updateAroundRedstone();
+        RedstoneComponent.updateAroundRedstone(getSide(getFacing().getOpposite()));
         return true;
     }
 
@@ -93,8 +94,8 @@ public abstract class BlockButton extends BlockFlowable implements Faceable {
                 this.level.setBlock(this, this, true, true);
                 this.level.addSound(new ButtonClickSound(this.add(0.5, 0.5, 0.5)));
 
-                level.updateAroundRedstone(getLocation(), null);
-                level.updateAroundRedstone(getLocation().getSide(getFacing().getOpposite()), null);
+                updateAroundRedstone();
+                RedstoneComponent.updateAroundRedstone(getSide(getFacing().getOpposite()));
             }
 
             return Level.BLOCK_UPDATE_SCHEDULED;
@@ -145,8 +146,8 @@ public abstract class BlockButton extends BlockFlowable implements Faceable {
         if (isActivated()) {
             this.level.getServer().getPluginManager().callEvent(new BlockRedstoneEvent(this, 15, 0));
 
-            this.level.updateAroundRedstone(this, null);
-            this.level.updateAroundRedstone(getSideVec(getFacing().getOpposite()), null);
+            updateAroundRedstone();
+            RedstoneComponent.updateAroundRedstone(getSide(getFacing().getOpposite()));
         }
 
         return true;

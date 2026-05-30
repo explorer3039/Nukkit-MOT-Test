@@ -16,6 +16,7 @@ import cn.nukkit.nbt.tag.DoubleTag;
 import cn.nukkit.nbt.tag.FloatTag;
 import cn.nukkit.nbt.tag.ListTag;
 import cn.nukkit.utils.BlockColor;
+import cn.nukkit.utils.RedstoneComponent;
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -23,7 +24,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * Created on 2015/12/8 by xtypr.
  * Package cn.nukkit.block in project Nukkit .
  */
-public class BlockTNT extends BlockSolid {
+public class BlockTNT extends BlockSolid implements RedstoneComponent {
 
     @Override
     public String getName() {
@@ -94,11 +95,15 @@ public class BlockTNT extends BlockSolid {
 
     @Override
     public int onUpdate(int type) {
-        if ((type == Level.BLOCK_UPDATE_NORMAL || type == Level.BLOCK_UPDATE_REDSTONE) && this.level.isBlockPowered(this.getLocation())) {
+        if ((type == Level.BLOCK_UPDATE_NORMAL || type == Level.BLOCK_UPDATE_REDSTONE) && this.isGettingPower()) {
             this.prime();
         }
 
         return 0;
+    }
+
+    public boolean isGettingPower() {
+        return this.level.isBlockPowered(this.getLocation());
     }
 
     @Override

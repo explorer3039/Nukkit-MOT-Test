@@ -3,13 +3,15 @@ package cn.nukkit.block;
 import cn.nukkit.item.Item;
 import cn.nukkit.item.ItemBlock;
 import cn.nukkit.level.Level;
+import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.utils.Rail;
+import cn.nukkit.utils.RedstoneComponent;
 
 /**
  * @author Nukkit Project Team
  */
-public class BlockRailActivator extends BlockRail {
+public class BlockRailActivator extends BlockRail implements RedstoneComponent {
 
     public BlockRailActivator(int meta) {
         super(meta);
@@ -44,8 +46,10 @@ public class BlockRailActivator extends BlockRail {
             if (isActive() != isPowered) {
                 setActive(isPowered);
                 level.updateAround(down());
+                RedstoneComponent.updateAroundRedstone(down(), BlockFace.UP, BlockFace.DOWN);
                 if (getOrientation().isAscending()) {
                     level.updateAround(up());
+                    RedstoneComponent.updateAroundRedstone(up(), BlockFace.UP, BlockFace.DOWN);
                 }
             }
             return type;

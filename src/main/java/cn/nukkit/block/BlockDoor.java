@@ -13,13 +13,18 @@ import cn.nukkit.math.AxisAlignedBB;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.SimpleAxisAlignedBB;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author MagicDroidX
  * Nukkit Project
  */
-public abstract class BlockDoor extends BlockTransparentMeta implements Faceable {
+public abstract class BlockDoor extends BlockTransparentMeta implements RedstoneComponent, Faceable {
+    private static final List<Location> manualOverrides = new ArrayList<>();
 
     public static final int DOOR_DIRECTION_BIT = 0x03;
     public static final int DOOR_OPEN_BIT = 0x04;
@@ -239,10 +244,12 @@ public abstract class BlockDoor extends BlockTransparentMeta implements Faceable
 
         if (type == Level.BLOCK_UPDATE_REDSTONE) {
             boolean powered = this.isGettingPower();
-            if ((!isOpen() && powered) || (isOpen() && !powered)) {
+            if (this.isOpen() != powered && !this.getManualOverride()) {
                 this.level.getServer().getPluginManager().callEvent(new BlockRedstoneEvent(this, isOpen() ? 15 : 0, isOpen() ? 0 : 15));
 
                 this.toggle(null);
+            } else if (this.getManualOverride() && powered == this.isOpen()) {
+                this.setManualOverride(false);
             }
         }
 
@@ -271,6 +278,40 @@ public abstract class BlockDoor extends BlockTransparentMeta implements Faceable
         }
 
         return this.level.isBlockPowered(down) || this.level.isBlockPowered(up);
+    }
+
+    public void setManualOverride(boolean val) {
+        Location down;
+        Location up;
+        if (this.isTop()) {
+            down = down().getLocation();
+            up = getLocation();
+        } else {
+            down = getLocation();
+            up = up().getLocation();
+        }
+
+        if (val) {
+            manualOverrides.add(up);
+            manualOverrides.add(down);
+        } else {
+            manualOverrides.remove(up);
+            manualOverrides.remove(down);
+        }
+    }
+
+    public boolean getManualOverride() {
+        Location down;
+        Location up;
+        if (this.isTop()) {
+            down = down().getLocation();
+            up = getLocation();
+        } else {
+            down = getLocation();
+            up = up().getLocation();
+        }
+
+        return manualOverrides.contains(up) || manualOverrides.contains(down);
     }
 
     @Override
@@ -312,6 +353,7 @@ public abstract class BlockDoor extends BlockTransparentMeta implements Faceable
 
     @Override
     public boolean onBreak(Item item) {
+        this.setManualOverride(false);
         if (isTop(this.getDamage())) {
             Block down = this.down();
             if (down.getId() == this.getId()) {
@@ -369,6 +411,9 @@ public abstract class BlockDoor extends BlockTransparentMeta implements Faceable
         }
 
         this.level.setBlockDataAt(down.getFloorX(), down.getFloorY(), down.getFloorZ(), down.getDamage() ^ 0x04);
+        if (player != null) {
+            this.setManualOverride(this.isGettingPower() || this.isOpen());
+        }
         this.playOpenCloseSound();
         return true;
     }

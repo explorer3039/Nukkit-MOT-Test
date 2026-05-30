@@ -1,14 +1,18 @@
 package cn.nukkit.block;
 
+import cn.nukkit.Player;
+import cn.nukkit.item.Item;
 import cn.nukkit.item.ItemTool;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.utils.BlockColor;
+import cn.nukkit.utils.RedstoneComponent;
+import org.jetbrains.annotations.NotNull;
 
 /*
  * Created on 2015/12/11 by Pub4Game.
  * Package cn.nukkit.block in project Nukkit .
  */
-public class BlockRedstone extends BlockSolid {
+public class BlockRedstone extends BlockSolid implements RedstoneComponent {
 
     @Override
     public int getId() {
@@ -38,6 +42,24 @@ public class BlockRedstone extends BlockSolid {
     @Override
     public String getName() {
         return "Block of Redstone";
+    }
+
+    @Override
+    public boolean place(@NotNull Item item, @NotNull Block block, @NotNull Block target, @NotNull BlockFace face, double fx, double fy, double fz, Player player) {
+        if (super.place(item, block, target, face, fx, fy, fz, player)) {
+            updateAroundRedstone();
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean onBreak(Item item) {
+        if (!super.onBreak(item)) {
+            return false;
+        }
+        updateAroundRedstone();
+        return true;
     }
 
     @Override

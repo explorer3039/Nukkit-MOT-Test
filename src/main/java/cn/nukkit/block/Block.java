@@ -668,6 +668,10 @@ public abstract class Block extends Position implements Metadatable, Cloneable, 
         return true;
     }
 
+    public boolean canSticksBlock() {
+        return false;
+    }
+
     public boolean hasComparatorInputOverride() {
         return false;
     }

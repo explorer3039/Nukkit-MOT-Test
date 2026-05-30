@@ -9,6 +9,7 @@ import cn.nukkit.event.redstone.RedstoneUpdateEvent;
 import cn.nukkit.level.Level;
 import cn.nukkit.network.protocol.BlockEventPacket;
 import cn.nukkit.network.protocol.LevelSoundEventPacket;
+import cn.nukkit.utils.RedstoneComponent;
 
 /**
  * @author MagicDroidX
@@ -80,7 +81,7 @@ public class ChestInventory extends ContainerInventory {
                     RedstoneUpdateEvent event = new RedstoneUpdateEvent(trappedChest);
                     this.getHolder().level.getServer().getPluginManager().callEvent(event);
                     if (!event.isCancelled()) {
-                        level.updateAroundRedstone(block);
+                        RedstoneComponent.updateAroundRedstone(block);
                     }
                 }
             }

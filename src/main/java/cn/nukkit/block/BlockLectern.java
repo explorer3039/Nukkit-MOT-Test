@@ -15,10 +15,11 @@ import cn.nukkit.network.protocol.ContainerOpenPacket;
 import cn.nukkit.network.protocol.LevelSoundEventPacket;
 import cn.nukkit.network.protocol.ProtocolInfo;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class BlockLectern extends BlockTransparentMeta implements Faceable, BlockEntityHolder<BlockEntityLectern> {
+public class BlockLectern extends BlockTransparentMeta implements RedstoneComponent, Faceable, BlockEntityHolder<BlockEntityLectern> {
 
     public BlockLectern() {
         this(0);
@@ -200,7 +201,8 @@ public class BlockLectern extends BlockTransparentMeta implements Faceable, Bloc
             setActivated(active);
             this.level.getServer().getPluginManager().callEvent(new BlockRedstoneEvent(this, 15, 0));
             level.setBlock((int) this.x, (int) this.y, (int) this.z, 0, this, false, false); // No need to send this to client
-            level.updateAroundRedstone(this, null);
+            updateAroundRedstone();
+            RedstoneComponent.updateAroundRedstone(getSide(BlockFace.DOWN), BlockFace.UP);
             if (active) {
                 level.scheduleUpdate(this, 1);
             }

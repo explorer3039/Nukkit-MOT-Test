@@ -19,13 +19,14 @@ import cn.nukkit.math.NukkitMath;
 import cn.nukkit.math.SimpleAxisAlignedBB;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.utils.BlockColor;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class BlockTarget extends BlockSolid implements BlockEntityHolder<BlockEntityTarget> {
+public class BlockTarget extends BlockSolid implements RedstoneComponent, BlockEntityHolder<BlockEntityTarget> {
 
     public BlockTarget() {
         super();
@@ -121,7 +122,7 @@ public class BlockTarget extends BlockSolid implements BlockEntityHolder<BlockEn
         level.scheduleUpdate(this, ticks);
         target.setActivePower(power);
         if (previous != power) {
-            this.level.updateAroundRedstone(this, null);
+            updateAroundRedstone();
         }
         return true;
     }
@@ -134,7 +135,7 @@ public class BlockTarget extends BlockSolid implements BlockEntityHolder<BlockEn
             target.setActivePower(0);
             target.close();
             if (currentPower != 0) {
-                this.level.updateAroundRedstone(this, null);
+                updateAroundRedstone();
             }
             return true;
         }

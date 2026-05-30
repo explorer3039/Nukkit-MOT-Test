@@ -3,8 +3,10 @@ package cn.nukkit.block;
 import cn.nukkit.item.Item;
 import cn.nukkit.item.ItemBlock;
 import cn.nukkit.level.Level;
+import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.utils.Rail;
+import cn.nukkit.utils.RedstoneComponent;
 
 /**
  * Created by Snake1999 on 2016/1/11.
@@ -14,7 +16,7 @@ import cn.nukkit.utils.Rail;
  * Minecart and Riding Project,
  * Package cn.nukkit.block in project Nukkit.
  */
-public class BlockRailPowered extends BlockRail {
+public class BlockRailPowered extends BlockRail implements RedstoneComponent {
 
     public BlockRailPowered() {
         this(0);
@@ -49,8 +51,10 @@ public class BlockRailPowered extends BlockRail {
             if (isActive() != isPowered) {
                 setActive(isPowered);
                 level.updateAround(down());
+                RedstoneComponent.updateAroundRedstone(down(), BlockFace.UP, BlockFace.DOWN);
                 if (getOrientation().isAscending()) {
                     level.updateAround(up());
+                    RedstoneComponent.updateAroundRedstone(up(), BlockFace.UP, BlockFace.DOWN);
                 }
             }
             return type;

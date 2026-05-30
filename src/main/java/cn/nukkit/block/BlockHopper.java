@@ -22,12 +22,13 @@ import cn.nukkit.math.Vector3;
 import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.nbt.tag.ListTag;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * @author CreeperFace
  */
-public class BlockHopper extends BlockTransparentMeta implements Faceable, BlockEntityHolder<BlockEntityHopper> {
+public class BlockHopper extends BlockTransparentMeta implements RedstoneComponent, Faceable, BlockEntityHolder<BlockEntityHopper> {
 
     public BlockHopper() {
         this(0);
@@ -84,7 +85,7 @@ public class BlockHopper extends BlockTransparentMeta implements Faceable, Block
 
         this.setDamage(facing.getIndex());
 
-        boolean powered = this.level.isBlockPowered(this);
+        boolean powered = this.isGettingPower();
 
         if (powered == this.isEnabled()) {
             this.setEnabled(!powered);
@@ -151,8 +152,8 @@ public class BlockHopper extends BlockTransparentMeta implements Faceable, Block
 
     @Override
     public int onUpdate(int type) {
-        if (type == Level.BLOCK_UPDATE_NORMAL) {
-            boolean powered = this.level.isBlockPowered(this);
+        if (type == Level.BLOCK_UPDATE_NORMAL || type == Level.BLOCK_UPDATE_REDSTONE) {
+            boolean powered = this.isGettingPower();
 
             if (powered == this.isEnabled()) {
                 this.setEnabled(!powered);
@@ -171,6 +172,10 @@ public class BlockHopper extends BlockTransparentMeta implements Faceable, Block
         }
 
         return 0;
+    }
+
+    public boolean isGettingPower() {
+        return this.level.isBlockPowered(this.getLocation());
     }
 
     @Override

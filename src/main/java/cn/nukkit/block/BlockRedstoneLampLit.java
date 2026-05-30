@@ -43,6 +43,12 @@ public class BlockRedstoneLampLit extends BlockRedstoneLamp {
         }
 
         if (type == Level.BLOCK_UPDATE_SCHEDULED && !this.level.isBlockPowered(this.getLocation())) {
+            RedstoneUpdateEvent ev = new RedstoneUpdateEvent(this);
+            this.level.getServer().getPluginManager().callEvent(ev);
+            if (ev.isCancelled()) {
+                return 0;
+            }
+            this.level.updateComparatorOutputLevelSelective(this, true);
             this.level.setBlock(this, Block.get(REDSTONE_LAMP), false, true);
         }
         return 0;

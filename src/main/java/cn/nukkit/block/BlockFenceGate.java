@@ -1,6 +1,7 @@
 package cn.nukkit.block;
 
 import cn.nukkit.Player;
+import cn.nukkit.event.block.BlockRedstoneEvent;
 import cn.nukkit.event.block.DoorToggleEvent;
 import cn.nukkit.item.Item;
 import cn.nukkit.item.ItemTool;
@@ -12,17 +13,23 @@ import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.SimpleAxisAlignedBB;
 import cn.nukkit.utils.BlockColor;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Created on 2015/11/23 by xtypr.
  * Package cn.nukkit.block in project Nukkit .
  */
-public class BlockFenceGate extends BlockTransparentMeta implements Faceable {
+public class BlockFenceGate extends BlockTransparentMeta implements RedstoneComponent, Faceable {
 
     public static final int DIRECTIO_BIT = 0x03;
     public static final int OPEN_BIT = 0x04;
     public static final int IN_WALL_BIT = 0x08;
+    private static final Set<cn.nukkit.level.Location> manualOverrides = Collections.synchronizedSet(new HashSet<>());
 
     public BlockFenceGate() {
         this(0);
@@ -156,6 +163,9 @@ public class BlockFenceGate extends BlockTransparentMeta implements Faceable {
 
         this.setDamage(direction | ((~this.getDamage()) & OPEN_BIT));
         this.level.setBlock(this, this, false, true);
+        if (player != null) {
+            this.setManualOverride(this.isGettingPower() || this.isOpen());
+        }
         if (this.isOpen()) {
             this.level.addSound(this, Sound.RANDOM_DOOR_OPEN);
         } else {
@@ -171,13 +181,37 @@ public class BlockFenceGate extends BlockTransparentMeta implements Faceable {
     @Override
     public int onUpdate(int type) {
         if (type == Level.BLOCK_UPDATE_REDSTONE) {
-            if ((!isOpen() && this.level.isBlockPowered(this.getLocation())) || (isOpen() && !this.level.isBlockPowered(this.getLocation()))) {
-                this.toggle(null);
-                return type;
-            }
+            this.onRedstoneUpdate();
+            return type;
         }
 
         return 0;
+    }
+
+    private void onRedstoneUpdate() {
+        boolean powered = this.isGettingPower();
+        if (this.isOpen() != powered && !this.getManualOverride()) {
+            this.level.getServer().getPluginManager().callEvent(new BlockRedstoneEvent(this, this.isOpen() ? 15 : 0, this.isOpen() ? 0 : 15));
+            this.toggle(null);
+        } else if (this.getManualOverride() && powered == this.isOpen()) {
+            this.setManualOverride(false);
+        }
+    }
+
+    public boolean isGettingPower() {
+        return this.level.isBlockPowered(this.getLocation());
+    }
+
+    public void setManualOverride(boolean val) {
+        if (val) {
+            manualOverrides.add(this.getLocation());
+        } else {
+            manualOverrides.remove(this.getLocation());
+        }
+    }
+
+    public boolean getManualOverride() {
+        return manualOverrides.contains(this.getLocation());
     }
     
     @Override

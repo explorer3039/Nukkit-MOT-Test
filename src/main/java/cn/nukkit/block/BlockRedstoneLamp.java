@@ -8,12 +8,13 @@ import cn.nukkit.item.ItemTool;
 import cn.nukkit.level.Level;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.utils.BlockColor;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * @author Nukkit Project Team
  */
-public class BlockRedstoneLamp extends BlockSolid {
+public class BlockRedstoneLamp extends BlockSolid implements RedstoneComponent {
 
     @Override
     public String getName() {
@@ -60,6 +61,7 @@ public class BlockRedstoneLamp extends BlockSolid {
                 return 0;
             }
             if (this.level.isBlockPowered(this.getLocation())) {
+                this.level.updateComparatorOutputLevelSelective(this, true);
                 this.level.setBlock(this, Block.get(LIT_REDSTONE_LAMP), false, false);
                 return 1;
             }

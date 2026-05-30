@@ -2,11 +2,14 @@ package cn.nukkit.block;
 
 import cn.nukkit.entity.Entity;
 import cn.nukkit.entity.item.EntityMinecartAbstract;
+import cn.nukkit.inventory.ContainerInventory;
+import cn.nukkit.inventory.InventoryHolder;
 import cn.nukkit.item.Item;
 import cn.nukkit.item.ItemBlock;
 import cn.nukkit.level.Level;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.SimpleAxisAlignedBB;
+import cn.nukkit.utils.RedstoneComponent;
 
 /**
  * Created on 2015/11/22 by CreeperFace.
@@ -16,7 +19,7 @@ import cn.nukkit.math.SimpleAxisAlignedBB;
  * Minecart and Riding Project,
  * Package cn.nukkit.block in project Nukkit.
  */
-public class BlockRailDetector extends BlockRail {
+public class BlockRailDetector extends BlockRail implements RedstoneComponent {
 
     public BlockRailDetector() {
         this(0);
@@ -49,7 +52,18 @@ public class BlockRailDetector extends BlockRail {
 
     @Override
     public int getStrongPower(BlockFace side) {
-        return isActive() ? 0 : (side == BlockFace.UP ? 15 : 0);
+        return isActive() ? (side == BlockFace.UP ? 15 : 0) : 0;
+    }
+
+    @Override
+    public boolean hasComparatorInputOverride() {
+        return true;
+    }
+
+    @Override
+    public int getComparatorInputOverride() {
+        EntityMinecartAbstract minecart = findMinecart();
+        return minecart instanceof InventoryHolder ? ContainerInventory.calculateRedstone(((InventoryHolder) minecart).getInventory()) : 0;
     }
 
     @Override
@@ -73,39 +87,44 @@ public class BlockRailDetector extends BlockRail {
 
     protected void updateState() {
         boolean wasPowered = isActive();
-        boolean isPowered = false;
-        boolean changed = false;
-
-        for (Entity entity : level.getCollidingEntities(new SimpleAxisAlignedBB(
-                getFloorX() + 0.125D,
-                getFloorY(),
-                getFloorZ() + 0.125D,
-                getFloorX() + 0.875D,
-                getFloorY() + 0.750D,
-                getFloorZ() + 0.875D))) {
-            if (entity instanceof EntityMinecartAbstract) {
-                isPowered = true;
-                break;
-            }
-        }
+        boolean isPowered = findMinecart() != null;
 
         if (isPowered && !wasPowered) {
             setActive(true);
             level.scheduleUpdate(this, this, 0);
             level.scheduleUpdate(this, this.down(), 0);
-            changed = true;
         }
 
         if (!isPowered && wasPowered) {
             setActive(false);
             level.scheduleUpdate(this, this, 0);
             level.scheduleUpdate(this, this.down(), 0);
-            changed = true;
         }
 
-        if (changed) {
+        if (isPowered != wasPowered) {
+            updateAroundRedstone();
+            RedstoneComponent.updateAroundRedstone(this.getSide(BlockFace.DOWN));
+        }
+
+        if (isPowered) {
+            level.scheduleUpdate(this, 20);
             level.updateComparatorOutputLevel(this);
         }
+    }
+
+    public EntityMinecartAbstract findMinecart() {
+        for (Entity entity : level.getNearbyEntities(new SimpleAxisAlignedBB(
+                getFloorX() + 0.2,
+                getFloorY(),
+                getFloorZ() + 0.2,
+                getFloorX() + 0.8,
+                getFloorY() + 0.8,
+                getFloorZ() + 0.8))) {
+            if (entity instanceof EntityMinecartAbstract) {
+                return (EntityMinecartAbstract) entity;
+            }
+        }
+        return null;
     }
 
     @Override

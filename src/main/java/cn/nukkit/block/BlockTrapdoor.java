@@ -13,13 +13,19 @@ import cn.nukkit.math.SimpleAxisAlignedBB;
 import cn.nukkit.network.protocol.LevelEventPacket;
 import cn.nukkit.utils.BlockColor;
 import cn.nukkit.utils.Faceable;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
-public class BlockTrapdoor extends BlockTransparentMeta implements Faceable {
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+
+public class BlockTrapdoor extends BlockTransparentMeta implements RedstoneComponent, Faceable {
     public static final int DIRECTION_MASK = 0b11;
     public static final int TRAPDOOR_TOP_BIT = 0x04;
     public static final int TRAPDOOR_OPEN_BIT = 0x08;
     private static final AxisAlignedBB[] boundingBoxDamage = new AxisAlignedBB[16];
+    private static final Set<cn.nukkit.level.Location> manualOverrides = Collections.synchronizedSet(new HashSet<>());
 
     static {
         for (int damage = 0; damage < 16; damage++) {
@@ -57,13 +63,14 @@ public class BlockTrapdoor extends BlockTransparentMeta implements Faceable {
 
     @Override
     public int onUpdate(int type) {
-        if (type == Level.BLOCK_UPDATE_REDSTONE && (
-                !this.isOpen() && level.isBlockPowered(this) || this.isOpen() && !level.isBlockPowered(this)
-        )) {
-            level.getServer().getPluginManager().callEvent(new BlockRedstoneEvent(this, this.isOpen() ? 15 : 0, this.isOpen() ? 0 : 15));
-            this.setDamage(this.getDamage() ^ TRAPDOOR_OPEN_BIT);
-            level.setBlock(this, this, true);
-            level.addLevelEvent(this.add(0.5, 0.5, 0.5), LevelEventPacket.EVENT_SOUND_DOOR);
+        if (type == Level.BLOCK_UPDATE_REDSTONE) {
+            boolean powered = level.isBlockPowered(this);
+            if (this.isOpen() != powered && !this.getManualOverride()) {
+                level.getServer().getPluginManager().callEvent(new BlockRedstoneEvent(this, this.isOpen() ? 15 : 0, this.isOpen() ? 0 : 15));
+                this.setOpen(null, powered);
+            } else if (this.getManualOverride() && powered == this.isOpen()) {
+                this.setManualOverride(false);
+            }
             return type;
         }
 
@@ -157,6 +164,9 @@ public class BlockTrapdoor extends BlockTransparentMeta implements Faceable {
         }
         this.setDamage(meta);
         this.getLevel().setBlock(block, this, true, true);
+        if (!this.isOpen() && this.level.isBlockPowered(this)) {
+            this.setOpen(null, true);
+        }
         return true;
     }
 
@@ -167,11 +177,7 @@ public class BlockTrapdoor extends BlockTransparentMeta implements Faceable {
 
     @Override
     public boolean onActivate(Item item, Player player) {
-        if (this.toggle(player)) {
-            level.addLevelEvent(this.add(0.5, 0.5, 0.5), LevelEventPacket.EVENT_SOUND_DOOR);
-            return true;
-        }
-        return false;
+        return this.toggle(player);
     }
 
     public boolean toggle(Player player) {
@@ -180,9 +186,40 @@ public class BlockTrapdoor extends BlockTransparentMeta implements Faceable {
         if (ev.isCancelled()) {
             return false;
         }
-        this.setDamage(this.getDamage() ^ TRAPDOOR_OPEN_BIT);
-        this.getLevel().setBlock(this, this, true);
+        return setOpen(ev.getPlayer(), !this.isOpen());
+    }
+
+    public boolean setOpen(Player player, boolean open) {
+        if (open == this.isOpen()) {
+            return false;
+        }
+        this.setDamage(open ? this.getDamage() | TRAPDOOR_OPEN_BIT : this.getDamage() & ~TRAPDOOR_OPEN_BIT);
+        if (!this.getLevel().setBlock(this, this, true)) {
+            return false;
+        }
+        if (player != null) {
+            this.setManualOverride(this.level.isBlockPowered(this) || this.isOpen());
+        }
+        level.addLevelEvent(this.add(0.5, 0.5, 0.5), LevelEventPacket.EVENT_SOUND_DOOR);
         return true;
+    }
+
+    public void setManualOverride(boolean val) {
+        if (val) {
+            manualOverrides.add(this.getLocation());
+        } else {
+            manualOverrides.remove(this.getLocation());
+        }
+    }
+
+    public boolean getManualOverride() {
+        return manualOverrides.contains(this.getLocation());
+    }
+
+    @Override
+    public boolean onBreak(Item item) {
+        this.setManualOverride(false);
+        return super.onBreak(item);
     }
 
     public boolean isOpen() {

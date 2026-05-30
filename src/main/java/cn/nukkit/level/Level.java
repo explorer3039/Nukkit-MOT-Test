@@ -104,6 +104,7 @@ public class Level implements ChunkManager, Metadatable {
     public static final int BLOCK_UPDATE_TOUCH = 5;
     public static final int BLOCK_UPDATE_REDSTONE = 6;
     public static final int BLOCK_UPDATE_TICK = 7;
+    public static final int BLOCK_UPDATE_MOVED = 8;
 
     public static final int TIME_DAY = 1000;
     public static final int TIME_NOON = 6000;
@@ -4800,6 +4801,10 @@ public class Level implements ChunkManager, Metadatable {
     }
 
     public int getStrongPower(Vector3 pos) {
+        if (pos instanceof BlockPistonBase || this.getBlock(pos) instanceof BlockPistonBase) {
+            return 0;
+        }
+
         int i = 0;
 
         for (BlockFace face : BlockFace.values()) {
@@ -4818,7 +4823,7 @@ public class Level implements ChunkManager, Metadatable {
     }
 
     public int getRedstonePower(Vector3 pos, BlockFace face) {
-        Block block = this.getBlock(pos);
+        Block block = pos instanceof Block ? (Block) pos : this.getBlock(pos);
         return block.isNormalBlock() ? this.getStrongPower(pos) : block.getWeakPower(face);
     }
 

@@ -12,6 +12,7 @@ import cn.nukkit.level.format.FullChunk;
 import cn.nukkit.nbt.NBTIO;
 import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.nbt.tag.IntTag;
+import cn.nukkit.utils.RedstoneComponent;
 
 public class BlockEntityLectern extends BlockEntitySpawnable {
 
@@ -133,7 +134,7 @@ public class BlockEntityLectern extends BlockEntitySpawnable {
         } else {
             totalPages = book.getNamedTag().getList("pages", CompoundTag.class).size();
         }
-        level.updateAroundRedstone(this, null);
+        RedstoneComponent.updateAroundRedstone(this);
     }
 
     public boolean dropBook(Player player) {

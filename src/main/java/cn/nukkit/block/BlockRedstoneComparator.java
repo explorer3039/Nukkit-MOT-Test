@@ -11,6 +11,7 @@ import cn.nukkit.math.BlockFace;
 import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.nbt.tag.ListTag;
 import cn.nukkit.utils.BlockColor;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -71,20 +72,12 @@ public abstract class BlockRedstoneComparator extends BlockRedstoneDiode impleme
 
     @Override
     public void updateState() {
-        if (!this.level.isBlockTickPending(this, this)) {
-            int output = this.calculateOutput();
-            BlockEntity blockEntity = this.level.getBlockEntity(this);
-            int power = blockEntity instanceof BlockEntityComparator ? ((BlockEntityComparator) blockEntity).getOutputSignal() : 0;
+        int output = this.calculateOutput();
+        BlockEntity blockEntity = this.level.getBlockEntity(this);
+        int power = blockEntity instanceof BlockEntityComparator ? ((BlockEntityComparator) blockEntity).getOutputSignal() : 0;
 
-            if (output != power || this.isPowered() != this.shouldBePowered()) {
-                /*if (isFacingTowardsRepeater()) {
-                    this.level.scheduleUpdate(this, this, 2, -1);
-                } else {
-                    this.level.scheduleUpdate(this, this, 2, 0);
-                }*/
-
-                this.level.scheduleUpdate(this, this, 2);
-            }
+        if (output != power || this.isPowered() != this.shouldBePowered()) {
+            this.level.scheduleUpdate(this, this, 2);
         }
     }
 
@@ -135,7 +128,7 @@ public abstract class BlockRedstoneComparator extends BlockRedstoneDiode impleme
 
         this.level.addSound(new ClickSound(this, getMode() == Mode.SUBTRACT ? 0.55F : 0.5F));
         this.level.setBlock(this, this, true, true);
-        //bug?
+        this.level.updateComparatorOutputLevelSelective(this, true);
 
         this.onChange();
         return true;
@@ -166,15 +159,16 @@ public abstract class BlockRedstoneComparator extends BlockRedstoneDiode impleme
             boolean isPowered = this.isPowered();
 
             if (isPowered && !shouldBePowered) {
-                this.level.setBlock(this, getUnpowered(), true, true);
+                this.level.setBlock(this, getUnpowered(), true, false);
+                this.level.updateComparatorOutputLevelSelective(this, true);
             } else if (!isPowered && shouldBePowered) {
-                this.level.setBlock(this, getPowered(), true, true);
+                this.level.setBlock(this, getPowered(), true, false);
+                this.level.updateComparatorOutputLevelSelective(this, true);
             }
 
-            this.level.updateAroundRedstone(this, null); //TODO: remove
-            //Block side = this.getSide(getFacing().getOpposite());
-            //side.onUpdate(Level.BLOCK_UPDATE_REDSTONE);
-            //this.level.updateAroundRedstone(side, null);
+            Block side = this.getSide(getFacing().getOpposite());
+            side.onUpdate(Level.BLOCK_UPDATE_REDSTONE);
+            RedstoneComponent.updateAroundRedstone(side);
         }
     }
 

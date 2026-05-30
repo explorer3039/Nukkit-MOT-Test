@@ -5,15 +5,17 @@ import cn.nukkit.event.block.BlockRedstoneEvent;
 import cn.nukkit.item.Item;
 import cn.nukkit.item.ItemBlock;
 import cn.nukkit.level.Level;
+import cn.nukkit.level.Position;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.network.protocol.LevelSoundEventPacket;
+import cn.nukkit.utils.RedstoneComponent;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * @author CreeperFace
  */
-public class BlockTripWireHook extends BlockFlowable {
+public class BlockTripWireHook extends BlockFlowable implements RedstoneComponent {
 
     public BlockTripWireHook() {
         this(0);
@@ -90,8 +92,8 @@ public class BlockTripWireHook extends BlockFlowable {
         }
 
         if (powered) {
-            this.level.updateAroundRedstone(this, null);
-            this.level.updateAroundRedstone(this.getLocation().getSide(getFacing().getOpposite()), null);
+            updateAroundRedstone();
+            RedstoneComponent.updateAroundRedstone(getSide(getFacing().getOpposite()));
         }
 
         return true;
@@ -152,8 +154,8 @@ public class BlockTripWireHook extends BlockFlowable {
             BlockFace face = facing.getOpposite();
             hook.setFace(face);
             this.level.setBlock(vec, hook, true, true);
-            this.level.updateAroundRedstone(vec, null);
-            this.level.updateAroundRedstone(vec.getSide(face.getOpposite()), null);
+            RedstoneComponent.updateAroundRedstone(asPosition(vec));
+            RedstoneComponent.updateAroundRedstone(asPosition(vec.getSide(face.getOpposite())));
             this.addSound(vec, canConnect, nextPowered, attached, powered);
         }
 
@@ -164,8 +166,8 @@ public class BlockTripWireHook extends BlockFlowable {
             this.level.setBlock(v, hook, true, true);
 
             if (updateAround) {
-                this.level.updateAroundRedstone(v, null);
-                this.level.updateAroundRedstone(v.getSide(facing.getOpposite()), null);
+                RedstoneComponent.updateAroundRedstone(asPosition(v));
+                RedstoneComponent.updateAroundRedstone(asPosition(v.getSide(facing.getOpposite())));
             }
         }
 
@@ -253,4 +255,8 @@ public class BlockTripWireHook extends BlockFlowable {
     public Item toItem() {
        return new ItemBlock(this, 0);
    }
+
+    private Position asPosition(Vector3 pos) {
+        return new Position(pos.x, pos.y, pos.z, this.level);
+    }
 }
