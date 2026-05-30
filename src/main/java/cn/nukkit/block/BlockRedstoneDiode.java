@@ -64,27 +64,22 @@ public abstract class BlockRedstoneDiode extends BlockFlowable implements Redsto
     public int onUpdate(int type) {
         if (type == Level.BLOCK_UPDATE_SCHEDULED) {
             if (!this.isLocked()) {
-                Vector3 pos = getLocation();
                 boolean shouldBePowered = this.shouldBePowered();
 
                 if (this.isPowered && !shouldBePowered) {
-                    this.level.setBlock(pos, this.getUnpowered(), true, true);
+                    this.level.setBlock(this, this.getUnpowered(), true, true);
                     this.isPowered = false;
 
                     Block side = this.getSide(getFacing().getOpposite());
                     side.onUpdate(Level.BLOCK_UPDATE_REDSTONE);
                     RedstoneComponent.updateAroundRedstone(side);
                 } else if (!this.isPowered) {
-                    this.level.setBlock(pos, this.getPowered(), true, true);
+                    this.level.setBlock(this, this.getPowered(), true, true);
                     this.isPowered = true;
 
                     Block side = this.getSide(getFacing().getOpposite());
                     side.onUpdate(Level.BLOCK_UPDATE_REDSTONE);
                     RedstoneComponent.updateAroundRedstone(side);
-
-                    if (!shouldBePowered) {
-                        level.scheduleUpdate(getPowered(), this, this.getDelay());
-                    }
                 }
             }
         } else if (type == Level.BLOCK_UPDATE_NORMAL || type == Level.BLOCK_UPDATE_REDSTONE) {
@@ -99,7 +94,7 @@ public abstract class BlockRedstoneDiode extends BlockFlowable implements Redsto
                 return Level.BLOCK_UPDATE_NORMAL;
             } else {
                 this.updateState();
-                return Level.BLOCK_UPDATE_NORMAL;
+                return type;
             }
         }
         return 0;

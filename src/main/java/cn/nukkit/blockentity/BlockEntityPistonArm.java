@@ -1,6 +1,7 @@
 package cn.nukkit.blockentity;
 
 import cn.nukkit.Player;
+import cn.nukkit.Server;
 import cn.nukkit.block.Block;
 import cn.nukkit.block.BlockAir;
 import cn.nukkit.block.BlockChest;
@@ -28,7 +29,7 @@ import java.util.List;
  */
 public class BlockEntityPistonArm extends BlockEntitySpawnable {
 
-    public static final float MOVE_STEP = 0.5f;
+    public static final float MOVE_STEP = 0.25f;
 
     public float progress;
     public float lastProgress = 1;
@@ -39,6 +40,7 @@ public class BlockEntityPistonArm extends BlockEntitySpawnable {
     public int newState = 1;
     public List<BlockVector3> attachedBlocks;
     public boolean powered;
+    public boolean finished = true;
 
     public BlockEntityPistonArm(FullChunk chunk, CompoundTag nbt) {
         super(chunk, nbt);
@@ -126,7 +128,7 @@ public class BlockEntityPistonArm extends BlockEntitySpawnable {
                 this.x + (pushDir.getXOffset() * progress),
                 this.y + (pushDir.getYOffset() * progress),
                 this.z + (pushDir.getZOffset() * progress)
-        );
+        ).addCoord(0, pushDir.getAxis().isHorizontal() ? 0.25 : 0, 0);
 
         Entity[] entities = this.level.getCollidingEntities(bb);
 
@@ -165,16 +167,20 @@ public class BlockEntityPistonArm extends BlockEntitySpawnable {
     }
 
     public void preMove(boolean extending, List<BlockVector3> attachedBlocks) {
+        this.finished = false;
         this.extending = extending;
         this.lastProgress = this.progress = extending ? 0 : 1;
         this.state = this.newState = extending ? 1 : 3;
         this.attachedBlocks = attachedBlocks;
         this.movable = false;
+        this.updateMovingData(true);
     }
 
     public void move() {
-        this.level.addChunkPacket(this.getChunkX(), this.getChunkZ(), this.createSpawnPacket());
-        this.lastProgress = this.extending ? -MOVE_STEP : 1 + MOVE_STEP;
+        if (this.closed || this.level == null) {
+            return;
+        }
+        this.lastProgress = this.extending ? 0 : 1;
         this.moveCollidedEntities();
         this.scheduleUpdate();
     }
@@ -214,6 +220,7 @@ public class BlockEntityPistonArm extends BlockEntitySpawnable {
                     Block moved = movingBlockEntity.getMovingBlock();
                     moved.position(movingBlock);
                     moved.setLevel(this.level);
+                    this.level.setBlock(movingBlock, 1, Block.get(BlockID.AIR), true, false);
 
                     CompoundTag blockEntityNbt = movingBlockEntity.getMovingBlockEntityCompound();
 
@@ -240,7 +247,8 @@ public class BlockEntityPistonArm extends BlockEntitySpawnable {
 
             if (!extending) {
                 if (this.level.getBlock(this.getSide(facing)).getId() == (sticky? BlockID.PISTON_HEAD_STICKY : BlockID.PISTON_HEAD)) {
-                    this.level.setBlock(this.getSide(facing), new BlockAir());
+                    this.level.setBlock(this.getSide(facing), 1, Block.get(BlockID.AIR), true, false);
+                    this.level.setBlock(this.getSide(facing), new BlockAir(), true, true);
                 }
                 this.movable = true;
             }
@@ -249,10 +257,14 @@ public class BlockEntityPistonArm extends BlockEntitySpawnable {
 
             this.level.scheduleUpdate(this.getLevelBlock(), 1);
             this.attachedBlocks.clear();
+            this.finished = true;
             hasUpdate = false;
+            this.updateMovingData(false);
         }
 
-        this.level.addChunkPacket(getChunkX(), getChunkZ(), this.createSpawnPacket());
+        if (hasUpdate) {
+            this.level.addChunkPacket(getChunkX(), getChunkZ(), this.createSpawnPacket());
+        }
         return super.onUpdate() || hasUpdate;
     }
 
@@ -262,7 +274,8 @@ public class BlockEntityPistonArm extends BlockEntitySpawnable {
 
     @Override
     public boolean isBlockEntityValid() {
-        return true;
+        int blockId = getBlock().getId();
+        return blockId == BlockID.PISTON || blockId == BlockID.STICKY_PISTON;
     }
 
     @Override
@@ -305,5 +318,22 @@ public class BlockEntityPistonArm extends BlockEntitySpawnable {
         }
 
         return attachedBlocks;
+    }
+
+    public void updateMovingData(boolean immediately) {
+        if (this.closed || this.level == null) {
+            return;
+        }
+
+        var packet = this.getSpawnPacket();
+        if (packet == null) {
+            return;
+        }
+
+        if (immediately) {
+            Server.broadcastPacket(this.level.getChunkPlayers(this.chunk.getX(), this.chunk.getZ()).values(), packet);
+        } else {
+            this.level.addChunkPacket(getChunkX(), getChunkZ(), packet);
+        }
     }
 }

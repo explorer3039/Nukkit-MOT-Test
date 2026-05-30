@@ -679,6 +679,75 @@ class RedstoneComponentBehaviorTest {
     }
 
     @Test
+    void redstoneTorchPlaceUpdatesNeighborsWhenRemainingLit() {
+        LevelFixture fixture = new LevelFixture();
+
+        BlockRedstoneTorch torch = new BlockRedstoneTorch();
+        torch.setLevel(fixture.level);
+        torch.x = 0;
+        torch.y = 0;
+        torch.z = 0;
+
+        BlockAir block = new BlockAir();
+        block.setLevel(fixture.level);
+        block.x = 0;
+        block.y = 0;
+        block.z = 0;
+
+        BlockStone support = new BlockStone();
+        support.setLevel(fixture.level);
+        support.x = 0;
+        support.y = -1;
+        support.z = 0;
+        fixture.registerBlock(support);
+
+        Assertions.assertTrue(torch.place(Item.get(Block.AIR), block, support, BlockFace.UP, 0.5, 0.5, 0.5, null));
+        Assertions.assertEquals(0, fixture.updatesAt(0, -1, 0));
+        Assertions.assertTrue(fixture.totalUpdates() > 0);
+    }
+
+    @Test
+    void redstoneTorchBurnoutMatchesVanillaWindowAndCooldown() {
+        LevelFixture fixture = new LevelFixture();
+        Server server = Mockito.mock(Server.class);
+        PluginManager pluginManager = Mockito.mock(PluginManager.class);
+        Mockito.when(fixture.level.getServer()).thenReturn(server);
+        Mockito.when(server.getPluginManager()).thenReturn(pluginManager);
+
+        BlockRedstoneTorch torch = new BlockRedstoneTorch(1);
+        torch.setLevel(fixture.level);
+        torch.x = 10;
+        torch.y = 0;
+        torch.z = 0;
+
+        fixture.poweredSides.put("9:0:0:" + BlockFace.WEST.getIndex(), true);
+
+        for (int i = 0; i < 7; i++) {
+            Mockito.when(server.getTick()).thenReturn(i * 2);
+            Assertions.assertTrue(torch.checkState());
+            Assertions.assertFalse(BlockRedstoneTorch.isBurnedOut(torch));
+        }
+
+        Mockito.when(server.getTick()).thenReturn(14);
+        Assertions.assertTrue(torch.checkState());
+        Assertions.assertTrue(BlockRedstoneTorch.isBurnedOut(torch));
+
+        BlockRedstoneTorchUnlit unlitTorch = new BlockRedstoneTorchUnlit(1);
+        unlitTorch.setLevel(fixture.level);
+        unlitTorch.x = 10;
+        unlitTorch.y = 0;
+        unlitTorch.z = 0;
+
+        fixture.poweredSides.clear();
+
+        Mockito.when(server.getTick()).thenReturn(20);
+        Assertions.assertFalse(unlitTorch.checkState());
+
+        Mockito.when(server.getTick()).thenReturn(175);
+        Assertions.assertTrue(unlitTorch.checkState());
+    }
+
+    @Test
     void leverActivationUsesDirectNeighborUpdatesOnly() {
         MockServer.init();
 
@@ -2051,6 +2120,45 @@ class RedstoneComponentBehaviorTest {
     }
 
     @Test
+    void pistonArmHorizontalCollisionAddsHeadroomForRidingEntities() {
+        MockServer.init();
+
+        FullChunk chunk = Mockito.mock(FullChunk.class);
+        Level level = Mockito.mock(Level.class);
+        LevelProvider provider = Mockito.mock(LevelProvider.class);
+        Mockito.when(chunk.getProvider()).thenReturn(provider);
+        Mockito.when(provider.getLevel()).thenReturn(level);
+        Mockito.when(level.getServer()).thenReturn(MockServer.get());
+
+        CompoundTag nbt = new CompoundTag()
+                .putInt("x", 0)
+                .putInt("y", 0)
+                .putInt("z", 0)
+                .putByte("State", 1)
+                .putByte("NewState", 1)
+                .putBoolean("Sticky", false)
+                .putBoolean("Extending", true)
+                .putBoolean("powered", true)
+                .putInt("facing", BlockFace.EAST.getIndex());
+
+        BlockEntityPistonArm arm = Mockito.spy(new BlockEntityPistonArm(chunk, nbt));
+        arm.setLevel(level);
+        arm.facing = BlockFace.EAST;
+        arm.extending = true;
+        arm.progress = 0.5f;
+        arm.lastProgress = 0.0f;
+        arm.attachedBlocks = new ArrayList<>();
+
+        Mockito.when(level.getCollidingEntities(Mockito.any(AxisAlignedBB.class))).thenAnswer(invocation -> {
+            AxisAlignedBB bb = invocation.getArgument(0);
+            Assertions.assertTrue(bb.getMaxY() > 1.0);
+            return new Entity[0];
+        });
+
+        arm.onUpdate();
+    }
+
+    @Test
     void pistonArmDoesNotDirectlyMovePlayers() {
         MockServer.init();
 
@@ -2083,6 +2191,49 @@ class RedstoneComponentBehaviorTest {
 
         Mockito.verify(player, Mockito.never()).onPushByPiston(Mockito.any(), Mockito.any());
         Mockito.verify(player, Mockito.never()).move(Mockito.anyDouble(), Mockito.anyDouble(), Mockito.anyDouble());
+    }
+
+    @Test
+    void pistonArmValidityRequiresPistonBaseBlock() {
+        MockServer.init();
+
+        FullChunk chunk = Mockito.mock(FullChunk.class);
+        Level level = Mockito.mock(Level.class);
+        LevelProvider provider = Mockito.mock(LevelProvider.class);
+        Mockito.when(chunk.getProvider()).thenReturn(provider);
+        Mockito.when(provider.getLevel()).thenReturn(level);
+        Mockito.when(level.getServer()).thenReturn(MockServer.get());
+
+        CompoundTag nbt = new CompoundTag()
+                .putInt("x", 0)
+                .putInt("y", 0)
+                .putInt("z", 0)
+                .putByte("State", 0)
+                .putByte("NewState", 0)
+                .putBoolean("Sticky", false)
+                .putBoolean("Extending", false)
+                .putBoolean("powered", false);
+
+        BlockEntityPistonArm arm = new BlockEntityPistonArm(chunk, nbt);
+        arm.setLevel(level);
+
+        BlockPiston piston = new BlockPiston();
+        piston.setLevel(level);
+        piston.x = 0;
+        piston.y = 0;
+        piston.z = 0;
+
+        BlockAir air = new BlockAir();
+        air.setLevel(level);
+        air.x = 0;
+        air.y = 0;
+        air.z = 0;
+
+        Mockito.when(level.getBlock(0, 0, 0, 0)).thenReturn(piston);
+        Assertions.assertTrue(arm.isBlockEntityValid());
+
+        Mockito.when(level.getBlock(0, 0, 0, 0)).thenReturn(air);
+        Assertions.assertFalse(arm.isBlockEntityValid());
     }
 
     @Test

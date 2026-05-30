@@ -22,7 +22,6 @@ import java.util.EnumSet;
 public class BlockRedstoneWire extends BlockFlowable implements RedstoneComponent {
 
     private boolean canProvidePower = true;
-    private boolean scheduledDecay = false;
 
     private static final ThreadLocal<Integer> UPDATE_DEPTH = ThreadLocal.withInitial(() -> 0);
     private static final int MAX_UPDATE_DEPTH = 16;
@@ -145,19 +144,11 @@ public class BlockRedstoneWire extends BlockFlowable implements RedstoneComponen
                 if (stillExists) {
                     this.level.getServer().getPluginManager().callEvent(new BlockRedstoneEvent(this, meta, maxStrength));
                     this.setDamage(maxStrength);
-                    this.level.setBlock(this, this, false, false);
+                    this.level.setBlock(this, this, false, true);
                 }
 
                 updateAllAroundRedstone();
 
-                if (maxStrength > 0) {
-                    if (!scheduledDecay) {
-                        this.level.scheduleUpdate(this, this, 2);
-                        scheduledDecay = true;
-                    }
-                } else {
-                    scheduledDecay = false;
-                }
             } else if (force) {
                 for (BlockFace face : BlockFace.values()) {
                     RedstoneComponent.updateAroundRedstone(getSide(face), face.getOpposite());
@@ -214,7 +205,6 @@ public class BlockRedstoneWire extends BlockFlowable implements RedstoneComponen
     @Override
     public int onUpdate(int type) {
         if (type == Level.BLOCK_UPDATE_SCHEDULED) {
-            scheduledDecay = false;
             this.calculateCurrentChanges(false, true);
             return type;
         }
@@ -237,7 +227,7 @@ public class BlockRedstoneWire extends BlockFlowable implements RedstoneComponen
 
         this.calculateCurrentChanges(false, true);
 
-        return Level.BLOCK_UPDATE_REDSTONE;
+        return Level.BLOCK_UPDATE_NORMAL;
     }
 
     public boolean canBePlacedOn(Vector3 pos) {

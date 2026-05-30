@@ -5,17 +5,26 @@ import cn.nukkit.event.redstone.RedstoneUpdateEvent;
 import cn.nukkit.item.Item;
 import cn.nukkit.level.Level;
 import cn.nukkit.math.BlockFace;
-import cn.nukkit.math.Vector3;
 import cn.nukkit.utils.BlockColor;
 import cn.nukkit.utils.Faceable;
 import cn.nukkit.utils.RedstoneComponent;
+import cn.nukkit.network.protocol.LevelSoundEventPacket;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author Angelic47
  * Nukkit Project
  */
 public class BlockRedstoneTorch extends BlockTorch implements RedstoneComponent, Faceable {
+    static final int MAX_TOGGLE_COUNT = 8;
+    static final int TOGGLE_WINDOW_TICKS = 60;
+    static final int BURNOUT_COOLDOWN_TICKS = 160;
+    private static final Map<String, BurnoutState> BURNOUT_STATES = new ConcurrentHashMap<>();
 
     public BlockRedstoneTorch() {
         this(0);
@@ -46,7 +55,9 @@ public class BlockRedstoneTorch extends BlockTorch implements RedstoneComponent,
             return false;
         }
 
-        checkState();
+        if (!checkState()) {
+            updateAllAroundRedstone(getBlockFace().getOpposite());
+        }
 
         return true;
     }
@@ -97,6 +108,10 @@ public class BlockRedstoneTorch extends BlockTorch implements RedstoneComponent,
             BlockFace face = getBlockFace().getOpposite();
             this.level.setBlock(this, Block.get(UNLIT_REDSTONE_TORCH, getDamage()), false, true);
             updateAllAroundRedstone(face);
+            if (setBurnedOut(this, true)) {
+                this.level.addLevelSoundEvent(this, LevelSoundEventPacket.SOUND_FIZZ);
+                this.level.scheduleUpdate(this, BURNOUT_COOLDOWN_TICKS);
+            }
 
             return true;
         }
@@ -106,9 +121,53 @@ public class BlockRedstoneTorch extends BlockTorch implements RedstoneComponent,
 
     protected boolean isPoweredFromSide() {
         BlockFace face = getBlockFace().getOpposite();
-        return this.level.isSidePowered(this.getLocation().getSide(face), face);
+        return this.level.isSidePowered(this.getSide(face), face);
     }
-     @Override
+
+    static boolean isBurnedOut(Block block) {
+        return setBurnedOut(block, false);
+    }
+
+    static boolean setBurnedOut(Block block, boolean addToggle) {
+        if (block.level == null || block.level.getServer() == null) {
+            return false;
+        }
+
+        int currentTick = block.level.getServer().getTick();
+        String key = getBurnoutKey(block);
+        BurnoutState state = BURNOUT_STATES.computeIfAbsent(key, ignored -> new BurnoutState());
+        state.prune(currentTick);
+
+        if (addToggle) {
+            state.toggleTicks.addLast(currentTick);
+            if (state.toggleTicks.size() >= MAX_TOGGLE_COUNT) {
+                state.burnoutUntilTick = Math.max(state.burnoutUntilTick, currentTick + BURNOUT_COOLDOWN_TICKS);
+            }
+        }
+
+        boolean burnedOut = state.burnoutUntilTick > currentTick;
+        if (!burnedOut && state.toggleTicks.isEmpty()) {
+            BURNOUT_STATES.remove(key, state);
+        }
+        return burnedOut;
+    }
+
+    private static String getBurnoutKey(Block block) {
+        return block.level.getId() + ":" + block.getFloorX() + ":" + block.getFloorY() + ":" + block.getFloorZ();
+    }
+
+    private static final class BurnoutState {
+        private final Deque<Integer> toggleTicks = new ArrayDeque<>();
+        private int burnoutUntilTick;
+
+        private void prune(int currentTick) {
+            while (!toggleTicks.isEmpty() && currentTick - toggleTicks.peekFirst() > TOGGLE_WINDOW_TICKS) {
+                toggleTicks.removeFirst();
+            }
+        }
+    }
+
+    @Override
     public int tickRate() {
         return 2;
     }

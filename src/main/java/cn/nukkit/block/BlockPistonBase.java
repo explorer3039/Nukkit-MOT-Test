@@ -23,6 +23,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 /**
@@ -272,6 +273,7 @@ public abstract class BlockPistonBase extends BlockSolidMeta implements Redstone
                 Block newBlock = newBlocks.get(i);
                 Vector3 oldPos = newBlock.add(0);
                 newBlock.position(newBlock.add(0).getSide(side));
+                this.level.setBlock(newBlock, 1, Block.get(BlockID.AIR), true, false);
                 this.level.setBlock(newBlock, Block.get(BlockID.MOVING_BLOCK), true, true);
 
                 CompoundTag nbt = BlockEntity.getDefaultCompound(newBlock, BlockEntity.MOVING_BLOCK)
@@ -295,6 +297,7 @@ public abstract class BlockPistonBase extends BlockSolidMeta implements Redstone
         }
 
         if (extending) {
+            this.level.setBlock(this.getSide(direction), 1, Block.get(BlockID.AIR), true, false);
             this.level.setBlock(this.getSide(direction), this.createHead(this.getDamage()), true, true);
         }
 
@@ -340,7 +343,30 @@ public abstract class BlockPistonBase extends BlockSolidMeta implements Redstone
         private final BlockFace moveDirection;
         private final boolean extending;
 
-        private final List<Block> toMove = new ArrayList<>();
+        private final List<Block> toMove = new CopyOnWriteArrayList<>() {
+            @Override
+            public int indexOf(Object o) {
+                if (o == null) {
+                    for (int i = 0; i < size(); i++) {
+                        if (get(i) == null) {
+                            return i;
+                        }
+                    }
+                } else {
+                    for (int i = 0; i < size(); i++) {
+                        if (o.equals(get(i))) {
+                            return i;
+                        }
+                    }
+                }
+                return -1;
+            }
+
+            @Override
+            public boolean contains(Object o) {
+                return indexOf(o) >= 0;
+            }
+        };
         private final List<Block> toDestroy = new ArrayList<>();
 
         public BlocksCalculator(boolean extending) {
