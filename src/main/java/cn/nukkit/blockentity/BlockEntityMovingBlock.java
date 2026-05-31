@@ -3,11 +3,13 @@ package cn.nukkit.blockentity;
 import cn.nukkit.block.Block;
 import cn.nukkit.block.BlockID;
 import cn.nukkit.entity.Entity;
+import cn.nukkit.level.GlobalBlockPalette;
 import cn.nukkit.level.format.FullChunk;
 import cn.nukkit.math.AxisAlignedBB;
 import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.BlockVector3;
 import cn.nukkit.nbt.tag.CompoundTag;
+import cn.nukkit.network.protocol.ProtocolInfo;
 
 /**
  * Created by CreeperFace on 11.4.2017.
@@ -16,6 +18,7 @@ public class BlockEntityMovingBlock extends BlockEntitySpawnable {
 
     protected Block block;
     protected BlockVector3 piston;
+    protected boolean expanding;
 
     public BlockEntityMovingBlock(FullChunk chunk, CompoundTag nbt) {
         super(chunk, nbt);
@@ -36,6 +39,8 @@ public class BlockEntityMovingBlock extends BlockEntitySpawnable {
         } else {
             this.piston = new BlockVector3(0, -1, 0);
         }
+
+        this.expanding = this.namedTag.getBoolean("expanding");
 
         super.initBlockEntity();
 
@@ -132,13 +137,47 @@ public class BlockEntityMovingBlock extends BlockEntitySpawnable {
 
     @Override
     public CompoundTag getSpawnCompound() {
+        return this.getSpawnCompound(ProtocolInfo.CURRENT_PROTOCOL);
+    }
+
+    @Override
+    public CompoundTag getSpawnCompound(int protocol) {
+        if (protocol >= ProtocolInfo.v1_16_100) {
+            return getDefaultCompound(this, MOVING_BLOCK)
+                    .putBoolean("expanding", this.expanding)
+                    .putBoolean("isMovable", true)
+                    .putInt("pistonPosX", this.piston.x)
+                    .putInt("pistonPosY", this.piston.y)
+                    .putInt("pistonPosZ", this.piston.z)
+                    .putCompound("movingBlock", blockToNetworkCompound(protocol, this.block))
+                    .putCompound("movingBlockExtra", this.namedTag.contains("movingBlockExtra")
+                            ? blockToNetworkCompound(protocol, this.namedTag.getCompound("movingBlockExtra"))
+                            : blockToNetworkCompound(protocol, Block.get(BlockID.AIR)));
+        }
+
         return getDefaultCompound(this, MOVING_BLOCK)
+                .putBoolean("expanding", this.expanding)
+                .putBoolean("isMovable", true)
                 .putInt("pistonPosX", this.piston.x)
                 .putInt("pistonPosY", this.piston.y)
                 .putInt("pistonPosZ", this.piston.z)
-                .putCompound("movingBlock", new CompoundTag()
-                        .putInt("id", this.block.getId())
-                        .putInt("meta", this.block.getDamage())
-                );
+                .putCompound("movingBlock", blockToCompound(this.block))
+                .putCompound("movingBlockExtra", this.namedTag.contains("movingBlockExtra")
+                        ? this.namedTag.getCompound("movingBlockExtra")
+                        : blockToCompound(Block.get(BlockID.AIR)));
+    }
+
+    private static CompoundTag blockToCompound(Block block) {
+        return new CompoundTag()
+                .putInt("id", block.getId())
+                .putInt("meta", block.getDamage());
+    }
+
+    private static CompoundTag blockToNetworkCompound(int protocol, Block block) {
+        return GlobalBlockPalette.getBlockStateTag(protocol, block.getId(), block.getDamage());
+    }
+
+    private static CompoundTag blockToNetworkCompound(int protocol, CompoundTag blockData) {
+        return GlobalBlockPalette.getBlockStateTag(protocol, blockData.getInt("id"), blockData.getInt("meta"));
     }
 }

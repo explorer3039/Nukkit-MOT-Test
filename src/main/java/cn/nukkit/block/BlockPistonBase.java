@@ -270,12 +270,17 @@ public abstract class BlockPistonBase extends BlockSolidMeta implements Faceable
                 this.level.setBlock(newBlock, Block.get(BlockID.MOVING_BLOCK), true, true);
 
                 CompoundTag nbt = BlockEntity.getDefaultCompound(newBlock, BlockEntity.MOVING_BLOCK)
+                        .putBoolean("expanding", extending)
                         .putInt("pistonPosX", this.getFloorX())
                         .putInt("pistonPosY", this.getFloorY())
                         .putInt("pistonPosZ", this.getFloorZ())
                         .putCompound("movingBlock", new CompoundTag()
                                 .putInt("id", newBlock.getId())
                                 .putInt("meta", newBlock.getDamage())
+                        )
+                        .putCompound("movingBlockExtra", new CompoundTag()
+                                .putInt("id", this.level.getBlock(oldPos, 1).getId())
+                                .putInt("meta", this.level.getBlock(oldPos, 1).getDamage())
                         );
 
                 if (namedTags.get(i) != null){

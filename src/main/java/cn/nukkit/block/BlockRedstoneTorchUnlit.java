@@ -64,7 +64,6 @@ public class BlockRedstoneTorchUnlit extends BlockTorch implements RedstoneCompo
     protected boolean checkState() {
         if (!isPoweredFromSide()) {
             if (BlockRedstoneTorch.isBurnedOut(this)) {
-                this.level.scheduleUpdate(this, BlockRedstoneTorch.BURNOUT_COOLDOWN_TICKS);
                 return false;
             }
             this.level.setBlock(this, Block.get(REDSTONE_TORCH, getDamage()), false, true);

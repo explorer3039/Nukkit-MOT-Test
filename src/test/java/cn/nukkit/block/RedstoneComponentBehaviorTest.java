@@ -400,6 +400,7 @@ class RedstoneComponentBehaviorTest {
         Mockito.when(server.getTick()).thenReturn(14);
         Assertions.assertTrue(torch.checkState());
         Assertions.assertTrue(BlockRedstoneTorch.isBurnedOut(torch));
+        Assertions.assertTrue(fixture.scheduledUpdates.contains("10:0:0:" + BlockRedstoneTorch.BURNOUT_COOLDOWN_TICKS));
 
         BlockRedstoneTorchUnlit unlitTorch = new BlockRedstoneTorchUnlit(1);
         unlitTorch.setLevel(fixture.level);
@@ -408,9 +409,11 @@ class RedstoneComponentBehaviorTest {
         unlitTorch.z = 0;
 
         fixture.poweredSides.clear();
+        fixture.scheduledUpdates.clear();
 
         Mockito.when(server.getTick()).thenReturn(20);
         Assertions.assertFalse(unlitTorch.checkState());
+        Assertions.assertTrue(fixture.scheduledUpdates.isEmpty());
 
         Mockito.when(server.getTick()).thenReturn(175);
         Assertions.assertTrue(unlitTorch.checkState());
@@ -1344,6 +1347,8 @@ class RedstoneComponentBehaviorTest {
         Mockito.verify(player, Mockito.never()).onPushByPiston(Mockito.any(), Mockito.any());
         Mockito.verify(player, Mockito.never()).move(Mockito.anyDouble(), Mockito.anyDouble(), Mockito.anyDouble());
     }
+
+
 
 
 

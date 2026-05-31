@@ -140,12 +140,9 @@ public class BlockRedstoneTorch extends BlockTorch implements RedstoneComponent,
 
         if (addToggle) {
             state.toggleTicks.addLast(currentTick);
-            if (state.toggleTicks.size() >= MAX_TOGGLE_COUNT) {
-                state.burnoutUntilTick = Math.max(state.burnoutUntilTick, currentTick + BURNOUT_COOLDOWN_TICKS);
-            }
         }
 
-        boolean burnedOut = state.burnoutUntilTick > currentTick;
+        boolean burnedOut = state.toggleTicks.size() >= MAX_TOGGLE_COUNT;
         if (!burnedOut && state.toggleTicks.isEmpty()) {
             BURNOUT_STATES.remove(key, state);
         }
@@ -158,7 +155,6 @@ public class BlockRedstoneTorch extends BlockTorch implements RedstoneComponent,
 
     private static final class BurnoutState {
         private final Deque<Integer> toggleTicks = new ArrayDeque<>();
-        private int burnoutUntilTick;
 
         private void prune(int currentTick) {
             while (!toggleTicks.isEmpty() && currentTick - toggleTicks.peekFirst() > TOGGLE_WINDOW_TICKS) {

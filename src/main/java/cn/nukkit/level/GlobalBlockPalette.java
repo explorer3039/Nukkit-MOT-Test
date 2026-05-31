@@ -472,6 +472,14 @@ public class GlobalBlockPalette {
         }
     }
 
+    public static CompoundTag getBlockStateTag(int protocol, int id, int meta) {
+        return getBlockStateTag(GameVersion.byProtocol(protocol, Server.getInstance().onlyNetEaseMode), id, meta);
+    }
+
+    public static CompoundTag getBlockStateTag(GameVersion gameVersion, int id, int meta) {
+        return getPaletteByProtocol(gameVersion).getBlockStateTag(id, meta);
+    }
+
     public static byte[] getCompiledTable(int protocol) {
         switch (protocol) {
             // Versions before this doesn't send compiled table in StartGamePacket

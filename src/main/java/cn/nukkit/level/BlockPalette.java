@@ -14,6 +14,7 @@ import com.google.common.cache.CacheBuilder;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntMaps;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import lombok.extern.log4j.Log4j2;
 
@@ -36,6 +37,7 @@ public class BlockPalette {
     private final Int2IntOpenHashMap runtimeIdToLegacy = new Int2IntOpenHashMap();
     private final Int2IntOpenHashMap stateHashToLegacy = new Int2IntOpenHashMap();
     private final Int2IntOpenHashMap legacyToHashId = new Int2IntOpenHashMap();
+    private final Int2ObjectOpenHashMap<CompoundTag> legacyToBlockStateTag = new Int2ObjectOpenHashMap<>();
 
     private final Cache<Integer, Integer> legacyToRuntimeIdCache = CacheBuilder.newBuilder()
             .maximumSize(MISSING_LEGACY_MAPPING_CACHE_SIZE)
@@ -197,6 +199,7 @@ public class BlockPalette {
         this.runtimeIdToLegacy.clear();
         this.stateHashToLegacy.clear();
         this.legacyToHashId.clear();
+        this.legacyToBlockStateTag.clear();
         this.legacyToRuntimeIdCache.invalidateAll();
     }
 
@@ -213,6 +216,7 @@ public class BlockPalette {
         int stateHash = Hash.hashBlock(blockState);
         this.stateHashToLegacy.putIfAbsent(stateHash, legacyId);
         this.legacyToHashId.putIfAbsent(legacyId, stateHash);
+        this.legacyToBlockStateTag.putIfAbsent(legacyId, blockState.copy());
 
         // Hack: Map IDs for item frame up & down states
         if (blockId == BlockID.ITEM_FRAME_BLOCK || blockId == BlockID.GLOW_FRAME) {
@@ -223,6 +227,7 @@ public class BlockPalette {
                 legacyId = blockId << Block.DATA_BITS | 5; // Up
                 this.legacyToRuntimeId.put(legacyId, runtimeId);
                 this.runtimeIdToLegacy.putIfAbsent(runtimeId, legacyId);
+                this.legacyToBlockStateTag.putIfAbsent(legacyId, blockState.copy());
 
                 int offset2 = 0;
 
@@ -230,6 +235,7 @@ public class BlockPalette {
                 legacyId = blockId << Block.DATA_BITS | 4; // Down
                 this.legacyToRuntimeId.put(legacyId, runtimeId);
                 this.runtimeIdToLegacy.putIfAbsent(runtimeId, legacyId);
+                this.legacyToBlockStateTag.putIfAbsent(legacyId, blockState.copy());
             }
         }
     }
@@ -247,6 +253,7 @@ public class BlockPalette {
         this.runtimeIdToLegacy.trim();
         this.stateHashToLegacy.trim();
         this.legacyToHashId.trim();
+        this.legacyToBlockStateTag.trim();
     }
 
     public int getRuntimeId(int id) {
@@ -271,6 +278,23 @@ public class BlockPalette {
             }
         }
         return runtimeId;
+    }
+
+    public CompoundTag getBlockStateTag(int id, int meta) {
+        int legacyId = protocol >= 388 ? ((id << Block.DATA_BITS) | meta) : ((id << 4) | meta);
+        CompoundTag state = legacyToBlockStateTag.get(legacyId);
+        if (state == null) {
+            state = legacyToBlockStateTag.get(id << Block.DATA_BITS);
+        }
+        if (state == null) {
+            state = legacyToBlockStateTag.get(BlockID.AIR << Block.DATA_BITS);
+        }
+        if (state == null) {
+            return new CompoundTag()
+                    .putString("name", "minecraft:air")
+                    .putCompound("states", new CompoundTag());
+        }
+        return state.copy();
     }
 
     public int getLegacyFullId(int runtimeId) {
